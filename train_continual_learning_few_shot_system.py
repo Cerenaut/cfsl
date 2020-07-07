@@ -8,7 +8,7 @@ from utils.dataset_tools import check_download_dataset
 from data import ConvertToThreeChannels, FewShotLearningDatasetParallel
 from torchvision import transforms
 from experiment_builder import ExperimentBuilder
-from few_shot_learning_system import *
+from models import *
 
 # Combines the arguments, model, data and experiment builders to run an experiment
 
