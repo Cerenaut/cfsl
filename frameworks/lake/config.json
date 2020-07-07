@@ -1,0 +1,47 @@
+{
+  "seed": 42,
+
+  "image_shape": [1, 1, 52, 52],
+  "image_resize_factor": 0.5,
+
+  "pretrain_epochs": 5,
+  "pretrain_batch_size": 64,
+
+  "pretrained_model_path": "runs/pretrained/pretrained_model_10.pt",
+
+  "study_steps": 120,
+  "study_batch_size": 20,
+
+  "ltm": {
+    "learning_rate": 0.005,
+    "filters": 121,
+    "kernel_size": 10,
+    "stride": 1,
+    "padding": 4,
+    "encoder_nonlinearity": "leaky_relu",
+    "decoder_nonlinearity": "sigmoid",
+    "use_bias": true,
+    "use_tied_weights": true,
+    "sparsity": 4,
+    "sparsity_output_factor": 1.0,
+    "use_lifetime_sparsity": false,
+
+    "output_pool_size": 4,
+    "output_pool_stride": 4,
+
+    "classifier": {
+      "learning_rate": 0.01,
+      "l2_penalty": 0.01,
+      "hidden_units": 800,
+      "output_units": 20
+    }
+  },
+  "stm": {
+    "learning_rate": 0.01,
+    "num_units": 100,
+    "l2_penalty": 0.00004,
+    "encoder_nonlinearity": "leaky_relu",
+    "decoder_nonlinearity": "sigmoid",
+    "use_bias": true
+  }
+}
