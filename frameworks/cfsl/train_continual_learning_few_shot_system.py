@@ -22,7 +22,7 @@ elif args.classifier_type == 'vgg-fine-tune-pretrained':
     model = FineTuneFromPretrainedFewShotClassifier(**args.__dict__)
 elif args.classifier_type == 'vgg-matching_network':
     model = MatchingNetworkFewShotClassifier(**args.__dict__)
-elif args.classifier_type == 'vcls':
+elif args.classifier_type == 'cls':
     model = CLSFewShotClassifier(**args.__dict__)
 else:
     raise NotImplementedError

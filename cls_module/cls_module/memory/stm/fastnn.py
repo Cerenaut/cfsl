@@ -66,8 +66,9 @@ class FastNN(nn.Module):
       loss.backward()
       self.fastnn_optimizer.step()
 
-    self.writer.add_scalar(self.summary_name('fastnn', 'loss'), loss, self.step)
-    self.writer.add_image(self.summary_name('fastnn', 'decoding'), torchvision.utils.make_grid(decoding), self.step)
+    if self.writer:
+      self.writer.add_scalar(self.summary_name('fastnn', 'loss'), loss, self.step)
+      self.writer.add_image(self.summary_name('fastnn', 'decoding'), torchvision.utils.make_grid(decoding), self.step)
 
     return loss, decoding
 

@@ -304,9 +304,6 @@ class FineTuneFromScratchFewShotClassifier(MAMLFewShotClassifier):
         :return: A dictionary with the collected losses of the current outer forward propagation.
         """
 
-        if self.current_iter == 4:
-          exit()
-
         import torchvision
         import matplotlib.pyplot as plt
         plt.switch_backend('agg')
@@ -346,14 +343,14 @@ class FineTuneFromScratchFewShotClassifier(MAMLFewShotClassifier):
             importance_weights = self.get_per_step_loss_importance_vector(current_epoch=self.current_epoch)
             step_idx = 0
 
-            print('y_target =', y_target_set_task)
+            # print('y_target =', y_target_set_task)
 
-            grid_img = torchvision.utils.make_grid(x_target_set_task)
-            grid_img = grid_img.permute(1, 2, 0)
-            filepath = 'imgs/epoch_' + str(epoch) + '_' + str(self.current_iter) + '_target_' + str(task_id) + '.png'
-            plt.imshow(grid_img, cmap='gray')
-            plt.savefig(filepath, format='png')
-            plt.close()
+            # grid_img = torchvision.utils.make_grid(x_target_set_task)
+            # grid_img = grid_img.permute(1, 2, 0)
+            # filepath = 'imgs/epoch_' + str(epoch) + '_' + str(self.current_iter) + '_target_' + str(task_id) + '.png'
+            # plt.imshow(grid_img, cmap='gray')
+            # plt.savefig(filepath, format='png')
+            # plt.close()
 
             for sub_task_id, (x_support_set_sub_task, y_support_set_sub_task) in \
                     enumerate(zip(x_support_set_task,
@@ -371,12 +368,12 @@ class FineTuneFromScratchFewShotClassifier(MAMLFewShotClassifier):
                 x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
                 y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
 
-                grid_img = torchvision.utils.make_grid(x_support_set_sub_task)
-                grid_img = grid_img.permute(1, 2, 0)
-                filepath = 'imgs/epoch_' + str(epoch) + '_' + str(self.current_iter) + '_support_' + str(task_id) + '_' + str(sub_task_id) + '.png'
-                plt.imshow(grid_img, cmap='gray')
-                plt.savefig(filepath, format='png')
-                plt.close()
+                # grid_img = torchvision.utils.make_grid(x_support_set_sub_task)
+                # grid_img = grid_img.permute(1, 2, 0)
+                # filepath = 'imgs/epoch_' + str(epoch) + '_' + str(self.current_iter) + '_support_' + str(task_id) + '_' + str(sub_task_id) + '.png'
+                # plt.imshow(grid_img, cmap='gray')
+                # plt.savefig(filepath, format='png')
+                # plt.close()
 
                 if self.num_target_set_steps > 0 and 'task_embedding' in self.conditional_information:
                     image_embedding = self.dense_net_embedding.forward(

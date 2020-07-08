@@ -7,9 +7,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import optim
+from torch.utils.tensorboard import SummaryWriter
 
-from cls_module import CLS
+from cls_module.cls import CLS
 
 from utils.generic import set_torch_seed, calculate_cosine_distance
 
@@ -19,7 +19,7 @@ class CLSFewShotClassifier(nn.Module):
 
   def __init__(self, **kwargs):
     """
-    Initializes a MAML few shot learning system
+    Initializes a CLS few shot learning system
     :param im_shape: The images input size, in batch, c, h, w shape
     :param device: The device to use to use the model on.
     :param args: A namedtuple of arguments specifying various hyperparameters.
@@ -33,9 +33,21 @@ class CLSFewShotClassifier(nn.Module):
     self.current_epoch = -1
     self.rng = set_torch_seed(seed=self.seed)
 
-    print(self.input_shape)
-    self.classifier = CLSMOdule(input_shape=self.input_shape)
+    # Specify the output units based on the CFSL task parameters
+    output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+        self.num_classes_per_set * self.num_support_sets
 
+    self.cls_config['ltm']['classifier']['output_units'] = output_units
+
+    print('output units =', output_units)
+
+    self.writer = SummaryWriter()
+    self.current_iter = 0
+
+    # Build the CLS module
+    self.classifier = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
+
+    # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
 
     if torch.cuda.is_available():
@@ -43,13 +55,11 @@ class CLSFewShotClassifier(nn.Module):
       if torch.cuda.device_count() > 1:
         self.classifier = nn.DataParallel(self.classifier)
 
-
     print("Outer Loop parameters")
     num_params = 0
     for name, param in self.named_parameters():
       if param.requires_grad:
         print(name, param.shape)
-
 
     print("Memory parameters")
     num_params = 0
@@ -62,14 +72,7 @@ class CLSFewShotClassifier(nn.Module):
         num_params += product
     print('Total Memory parameters', num_params)
 
-    self.optimizer = optim.Adam(self.trainable_parameters(exclude_list=[]),
-                                lr=self.meta_learning_rate,
-                                weight_decay=self.weight_decay, amsgrad=False)
-
-    self.scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=self.optimizer, T_max=self.total_epochs,
-                                                          eta_min=self.min_learning_rate)
     self.to(self.device)
-
 
   def trainable_names_parameters(self, exclude_params_with_string=None):
     """
@@ -84,97 +87,132 @@ class CLSFewShotClassifier(nn.Module):
         if param.requires_grad:
           yield (name, param)
 
-  def forward(self, data_batch, training_phase):
+  def forward(self, data_batch, training_phase):  # pylint: disable=arguments-differ
     """
-    Builds tf graph for Matching Networks, produces losses and summary statistics.
+    Perform one step using CLS to produce losses and summary statistics.
     :return:
     """
+    if self.current_iter == 1:
+      exit()
 
-    data_batch = [item.to(self.device) for item in data_batch]
+    self.classifier.reset()
 
-    x_support_set, x_target_set, y_support_set, y_target_set, _, _ = data_batch
+    x_support_set, x_target_set, y_support_set, y_target_set, x, y = data_batch
 
-    # print('support 0 shape =', x_support_set.shape, x_target_set.shape, y_support_set.shape, y_target_set.shape)
+    x = x.view(-1, x.shape[-3], x.shape[-2], x.shape[-1]).to(self.device)
+    y = y.view(-1).to(self.device).long()
 
-    x_support_set = x_support_set.view(-1, x_support_set.shape[-3], x_support_set.shape[-2],
-                                        x_support_set.shape[-1])
-    x_target_set = x_target_set.view(-1, x_target_set.shape[-3], x_target_set.shape[-2], x_target_set.shape[-1])
-    y_support_set = y_support_set.view(-1)
-    y_target_set = y_target_set.view(-1)
+    num_pretrain_steps = 240
+    num_study_steps = 120
 
-    output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-        self.num_classes_per_set * self.num_support_sets
+    # Pretrain the LTM-VC
+    if training_phase:
+      for _ in range(num_pretrain_steps):
+        self.classifier(inputs=x, labels=None, mode='pretrain')
 
-    print('output units =', output_units)
+    total_per_step_losses = []
+    total_per_step_accuracies = []
 
-    y_support_set_one_hot = int_to_one_hot(y_support_set)
+    per_task_preds = []
 
-    g_encoded_images = []
+    pre_target_loss_update_loss = []
+    pre_target_loss_update_acc = []
+    post_target_loss_update_loss = []
+    post_target_loss_update_acc = []
 
-    h, w, c = x_support_set.shape[-3:]
+    for _, (x_support_set_task, y_support_set_task, x_target_set_task, y_target_set_task) in \
+            enumerate(zip(x_support_set, y_support_set, x_target_set, y_target_set)):
 
-    x_support_set = x_support_set.view(size=(self.batch_size, -1, h, w, c))
-    x_target_set = x_target_set.view(size=(self.batch_size, -1, h, w, c))
-    y_support_set = y_support_set.view(size=(self.batch_size, -1))
-    y_target_set = y_target_set.view(self.batch_size, -1)
+      c, h, w = x_target_set_task.shape[-3:]
+      x_target_set_task = x_target_set_task.view(-1, c, h, w).to(self.device)
+      y_target_set_task = y_target_set_task.view(-1).to(self.device)
 
-    print('data shape =', x_support_set.shape, x_target_set.shape, y_support_set.shape, y_target_set.shape)
-    print(y_support_set)
-    count = 0
-    for x_support_set_task, y_support_set_task in zip(x_support_set,
-                                                      y_support_set):  # produce embeddings for support set images
-      count += 1
-      support_set_cnn_embed, _ = self.classifier.forward(x=x_support_set_task)  # nsc * nc, h, w, c
+      step_idx = 0
 
-      per_class_embeddings = torch.zeros(
-          (output_units, int(np.prod(support_set_cnn_embed.shape) / (self.num_classes_per_set
-                                                                      * support_set_cnn_embed.shape[-1])),
-            support_set_cnn_embed.shape[-1])).to(x_support_set_task.device)
+      if training_phase:
+        self.classifier.train()
+      else:
+        self.classifier.eval()
 
-      counter_dict = defaultdict(lambda: 0)
+      for _, (x_support_set_sub_task, y_support_set_sub_task) in enumerate(zip(x_support_set_task, y_support_set_task)):
 
-      print(support_set_cnn_embed.shape)
-      for x, y in zip(support_set_cnn_embed, y_support_set_task):
-        counter_dict[y % output_units] += 1
-        print(y % output_units, counter_dict[y % output_units] - 1, x.shape, x.mean())
-        per_class_embeddings[y % output_units][counter_dict[y % output_units] - 1] = x
-      print(per_class_embeddings.shape)
-      per_class_embeddings = per_class_embeddings.mean(1)
-      g_encoded_images.append(per_class_embeddings)
+        # in the future try to adapt the features using a relational component
+        x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
+        y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
 
-    f_encoded_image, _ = self.classifier.forward(x=x_target_set.view(-1, h, w, c))
-    f_encoded_image = f_encoded_image.view(self.batch_size, -1, f_encoded_image.shape[-1])
-    print('f_encoded_image', f_encoded_image.shape)
-    g_encoded_images = torch.stack(g_encoded_images, dim=0)
-    print('g_encoded', g_encoded_images.shape)
+        # Memorise the support sets in STM
+        if training_phase:
+          for _ in range(num_study_steps):
+            losses, _ = self.classifier(inputs=x_support_set_sub_task, labels=y_support_set_sub_task, mode='study')
+            step_idx += 1
 
-    preds, similarities = calculate_cosine_distance(support_set_embeddings=g_encoded_images,
-                                                    support_set_labels=y_support_set_one_hot.float(),
-                                                    target_set_embeddings=f_encoded_image)
+        # TODO:
+        # 1. Spontanious recall to retrieve old samples
+        # 2. Interleave current support set with recalled samples
+        # 3. Consolidate into the LTM classifier
+        # for num_step in range(num_study_steps):
+        #   losses, _ = self.classifier(inputs=x_support_set_sub_task, labels=y_support_set_sub_task, mode='recall')
 
-    y_target_set = y_target_set.view(-1)
-    preds = preds.view(-1, preds.shape[-1])
-    loss = F.cross_entropy(input=preds, target=y_target_set)
+        #   # support_set_preds = self.classifier.ltm.predictions
+        #   # support_set_softmax_preds = F.softmax(support_set_preds, dim=1).argmax(dim=1)
+        #   # support_set_accuracy = torch.eq(support_set_softmax_preds, y_support_set_sub_task).data.cpu().float().mean()
+        #   step_idx += 1
 
-    softmax_target_preds = F.softmax(preds, dim=1).argmax(dim=1)
-    accuracy = torch.eq(softmax_target_preds, y_target_set).data.cpu().float().mean()
-    losses = dict()
-    losses['loss'] = loss
-    losses['accuracy'] = accuracy
+      # Measure performance on the target set
+      self.classifier.eval()
+      target_losses, _ = self.classifier(inputs=x_target_set_task, labels=y_target_set_task, mode='recall')
 
-    return losses, preds.view(self.batch_size,
-                              self.num_support_sets * self.num_classes_per_set *
-                              self.num_samples_per_target_class,
-                              output_units)
+      target_set_preds = self.classifier.ltm.predictions
+      target_set_loss = target_losses['ltm']  # target_losses['stm']
+      step_idx += 1
+
+      post_update_loss, post_update_target_preds = target_set_loss, target_set_preds
+
+      pre_target_loss_update_loss.append(target_set_loss)
+      pre_softmax_target_preds = F.softmax(target_set_preds, dim=1).argmax(dim=1)
+      pre_update_accuracy = torch.eq(pre_softmax_target_preds, y_target_set_task).data.cpu().float().mean()
+      pre_target_loss_update_acc.append(pre_update_accuracy)
+
+      post_target_loss_update_loss.append(post_update_loss)
+      post_softmax_target_preds = F.softmax(post_update_target_preds, dim=1).argmax(dim=1)
+
+      post_update_accuracy = torch.eq(post_softmax_target_preds, y_target_set_task).data.cpu().float().mean()
+      post_target_loss_update_acc.append(post_update_accuracy)
+
+      post_softmax_target_preds = F.softmax(post_update_target_preds, dim=1).argmax(dim=1)
+      post_update_accuracy = torch.eq(post_softmax_target_preds, y_target_set_task).data.cpu().float().mean()
+      post_target_loss_update_acc.append(post_update_accuracy)
+
+      self.writer.add_scalar('target_set_loss', target_set_loss, self.current_iter)
+      self.writer.add_scalar('target_set_accuracy', post_update_accuracy, self.current_iter)
+
+      loss = target_set_loss
+
+      total_per_step_losses.append(loss)
+      total_per_step_accuracies.append(post_update_accuracy)
+
+      per_task_preds.append(post_update_target_preds.detach().cpu().numpy())
+
+    loss_metric_dict = dict()
+    loss_metric_dict['pre_target_loss_update_loss'] = post_target_loss_update_loss
+    loss_metric_dict['pre_target_loss_update_acc'] = pre_target_loss_update_acc
+    loss_metric_dict['post_target_loss_update_loss'] = post_target_loss_update_loss
+    loss_metric_dict['post_target_loss_update_acc'] = post_target_loss_update_acc
+
+    losses = self.get_across_task_loss_metrics(total_losses=total_per_step_losses,
+                                               total_accuracies=total_per_step_accuracies,
+                                               loss_metrics_dict=loss_metric_dict)
+
+    return losses, per_task_preds
 
   def trainable_parameters(self, exclude_list):
     """
     Returns an iterator over the trainable parameters of the model.
     """
     for name, param in self.named_parameters():
-        if all([entry not in name for entry in exclude_list]):
-            if param.requires_grad:
-              yield param
+      if all([entry not in name for entry in exclude_list]):
+        if param.requires_grad:
+          yield param
 
   def trainable_named_parameters(self, exclude_list):
     """
@@ -192,8 +230,11 @@ class CLSFewShotClassifier(nn.Module):
     :param epoch: The index of the currrent epoch.
     :return: A dictionary of losses for the current step.
     """
+    del epoch, current_iter
+
     losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=True)
-    return losses, per_task_preds.detach().cpu().numpy()
+
+    return losses, per_task_preds
 
   def evaluation_forward_prop(self, data_batch, epoch):
     """
@@ -202,18 +243,11 @@ class CLSFewShotClassifier(nn.Module):
     :param epoch: The index of the currrent epoch.
     :return: A dictionary of losses for the current step.
     """
+    del epoch
+
     losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=False)
 
-    return losses, per_task_preds.detach().cpu().numpy()
-
-  def meta_update(self, loss):
-    """
-    Applies an outer loop update on the meta-parameters of the model.
-    :param loss: The current crossentropy loss.
-    """
-    self.optimizer.zero_grad()
-    loss.backward()
-    self.optimizer.step()
+    return losses, per_task_preds
 
   def run_train_iter(self, data_batch, epoch, current_iter):
     """
@@ -223,19 +257,16 @@ class CLSFewShotClassifier(nn.Module):
     :return: The losses of the ran iteration.
     """
     epoch = int(epoch)
-    self.scheduler.step(epoch=epoch)
+
     if self.current_epoch != epoch:
       self.current_epoch = epoch
-      # print(epoch, self.optimizer)
 
     if not self.training:
       self.train()
 
     losses, per_task_preds = self.train_forward_prop(data_batch=data_batch, epoch=epoch, current_iter=current_iter)
 
-    self.meta_update(loss=losses['loss'])
-    losses['learning_rate'] = self.scheduler.get_lr()[0]
-    self.zero_grad()
+    self.current_iter += 1
 
     return losses, per_task_preds
 
@@ -248,7 +279,7 @@ class CLSFewShotClassifier(nn.Module):
     """
 
     if self.training:
-        self.eval()
+      self.eval()
 
     losses, per_task_preds = self.evaluation_forward_prop(data_batch=data_batch, epoch=self.current_epoch)
 
@@ -285,3 +316,18 @@ class CLSFewShotClassifier(nn.Module):
 
     return state
 
+  def get_across_task_loss_metrics(self, total_losses, total_accuracies, loss_metrics_dict):
+    losses = dict()
+
+    losses['loss'] = torch.mean(torch.stack(total_losses), dim=(0,))
+
+    losses['accuracy'] = torch.mean(torch.stack(total_accuracies), dim=(0,))
+
+    if 'saved_logits' in loss_metrics_dict:
+      losses['saved_logits'] = loss_metrics_dict['saved_logits']
+      del loss_metrics_dict['saved_logits']
+
+    for name, value in loss_metrics_dict.items():
+      losses[name] = torch.stack(value).mean()
+
+    return losses

@@ -22,8 +22,8 @@ class CLS(nn.Module):
 
     self.step = 0
 
-    if self.writer is None:
-      self.writer = SummaryWriter()
+    # if self.writer is None:
+    #   self.writer = SummaryWriter()
 
     if self.device is None:
       self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -57,6 +57,13 @@ class CLS(nn.Module):
     self.add_module(self.ltm_key, ltm_)
     self.add_module(self.stm_key, stm_)
 
+  def reset(self):
+    def weight_reset(m):
+      if isinstance(m, (nn.Conv2d, nn.Linear)):
+        m.reset_parameters()
+
+    self.apply(weight_reset)
+
   def freeze(self, names):
     depth = 2
 
@@ -68,7 +75,6 @@ class CLS(nn.Module):
         continue
 
       if len(name) == 1:
-        print('Freezing whole module =', name[0])
         parent_module.train(False)
         continue
 
@@ -112,6 +118,9 @@ class CLS(nn.Module):
     losses[self.ltm_key], outputs[self.ltm_key] = self.ltm(inputs=inputs, targets=inputs, labels=labels)
 
     if mode in self.stm_modes:
+      if mode == 'recall':
+        self.freeze([self.stm_key])
+
       stm_input = outputs[self.ltm_key].detach()  # Ensures no gradients pass through modules
       losses[self.stm_key], outputs[self.stm_key] = self.stm(inputs=stm_input, targets=inputs)
 

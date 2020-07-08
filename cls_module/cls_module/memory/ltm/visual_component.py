@@ -85,9 +85,10 @@ class VisualComponent(nn.Module):
     loss = F.mse_loss(decoding, targets)
 
     # Add summaries to TensorBoard
-    self.writer.add_scalar(self.summary_name('vc', 'loss'), loss, self.step)
-    self.writer.add_image(self.summary_name('vc', 'input'), torchvision.utils.make_grid(inputs), self.step)
-    self.writer.add_image(self.summary_name('vc', 'decoding'), torchvision.utils.make_grid(decoding), self.step)
+    if self.writer:
+      self.writer.add_scalar(self.summary_name('vc', 'loss'), loss, self.step)
+      self.writer.add_image(self.summary_name('vc', 'input'), torchvision.utils.make_grid(inputs), self.step)
+      self.writer.add_image(self.summary_name('vc', 'decoding'), torchvision.utils.make_grid(decoding), self.step)
 
     if self.vc.training:
       loss.backward()
@@ -102,7 +103,9 @@ class VisualComponent(nn.Module):
     inputs = torch.flatten(inputs, start_dim=1)
     outputs = self.classifier(inputs)
 
-    labels = torch.from_numpy(labels)
+    if not isinstance(labels, torch.Tensor):
+      labels = torch.from_numpy(labels)
+
     loss = self.classifier_loss(outputs, labels)
 
     _, predicted = torch.max(outputs.data, 1)
@@ -110,8 +113,9 @@ class VisualComponent(nn.Module):
     accuracy = correct / labels.size(0)
 
     # Add summaries to TensorBoard
-    self.writer.add_scalar(self.summary_name('classifier', 'loss'), loss, self.step)
-    self.writer.add_scalar(self.summary_name('classifier', 'accuracy'), accuracy, self.step)
+    if self.writer:
+      self.writer.add_scalar(self.summary_name('classifier', 'loss'), loss, self.step)
+      self.writer.add_scalar(self.summary_name('classifier', 'accuracy'), accuracy, self.step)
 
     if self.classifier.training:
       loss.backward()
