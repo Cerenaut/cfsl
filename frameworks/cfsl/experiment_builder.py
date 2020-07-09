@@ -355,7 +355,8 @@ class ExperimentBuilder(object):
 
                         total_losses = dict()
                         val_losses = dict()
-                        with tqdm.tqdm(total=len(self.data['val'])) as pbar_val:
+                        # with tqdm.tqdm(total=len(self.data['val'])) as pbar_val:
+                        with tqdm.tqdm(total=int(self.num_evaluation_tasks / self.batch_size)) as pbar_val:
                             for val_sample_idx, val_sample in enumerate(
                                     self.data['val']):
 
