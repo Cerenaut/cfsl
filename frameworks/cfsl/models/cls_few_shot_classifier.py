@@ -15,6 +15,8 @@ from cls_module.components.classifier import Classifier
 
 from utils.generic import set_torch_seed, calculate_cosine_distance
 
+import torchvision
+import matplotlib.pyplot as plt
 
 class CLSFewShotClassifier(nn.Module):
   """Few shot classifier based on CLS module."""
@@ -36,8 +38,8 @@ class CLSFewShotClassifier(nn.Module):
     self.rng = set_torch_seed(seed=self.seed)
 
     # Specify the output units based on the CFSL task parameters
-    output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-        (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval
+    output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+        (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
     self.cls_config['ltm']['classifier']['output_units'] = output_units
     self.cls_config['stm']['classifier']['output_units'] = output_units
@@ -133,14 +135,14 @@ class CLSFewShotClassifier(nn.Module):
       if not self.training:
         self.train()
 
-      for subtask_id, (x_support_set_sub_task, y_support_set_sub_task) in \
+      for _, (x_support_set_sub_task, y_support_set_sub_task) in \
             enumerate(zip(x_support_set_task, y_support_set_task)):
 
         # in the future try to adapt the features using a relational component
         x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
         y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
 
-        print('Memorising Support Set =', subtask_id)
+        print('Memorising Support Set =', y_support_set)
 
         # Memorise the support sets in STM
         for _ in range(num_study_steps):
@@ -244,14 +246,33 @@ class CLSFewShotClassifier(nn.Module):
     :param epoch: the index of the current epoch
     :return: The losses of the ran iteration.
     """
-    del current_iter
 
     epoch = int(epoch)
+    plot_images = int(current_iter == 0)
 
     if not self.training:
       self.train()
 
-    *_, x, y = data_batch
+    x_support_set, x_target_set, y_support_set, y_target_set, x, y = data_batch
+
+    if plot_images:
+      x_support_set = x_support_set.view(-1, x_support_set.shape[-3], x_support_set.shape[-2],
+                                         x_support_set.shape[-1])
+      x_target_set = x_target_set.view(-1, x_target_set.shape[-3], x_target_set.shape[-2], x_target_set.shape[-1])
+      y_support_set = y_support_set.view(-1)
+      y_target_set = y_target_set.view(-1)
+
+      support_set_img = torchvision.utils.make_grid(x_support_set,
+                                                    nrow=self.num_classes_per_set * self.num_samples_per_support_class)
+      target_set_img = torchvision.utils.make_grid(x_target_set,
+                                                   nrow=self.num_classes_per_set * self.num_samples_per_target_class)
+
+      filepath = 'task_images.png'
+      fig, ax = plt.subplots(2, 1, figsize=(10, 10))
+      ax[0].imshow(target_set_img.permute(1, 2, 0), cmap='gray')
+      ax[1].imshow(support_set_img.permute(1, 2, 0), cmap='gray')
+      fig.savefig(filepath, format='png')
+      plt.close()
 
     x = x.view(-1, x.shape[-3], x.shape[-2], x.shape[-1]).to(self.device)
     y = y.view(-1).to(self.device).long()
@@ -309,11 +330,20 @@ class CLSFewShotClassifier(nn.Module):
     filepath = os.path.join(model_save_dir, "{}_{}".format(model_name, model_idx))
 
     state = torch.load(filepath, map_location='cpu')
-    net = dict(state['network'])
 
-    state['network'] = OrderedDict(net)
+    net = dict(state['network'])
+    net_mutated = dict()
+
+    for key in net:
+      if key.startswith('model.ltm.classifier') or key.startswith('model.stm'):
+        continue
+
+      net_mutated[key] = net[key]
+
+    state['network'] = OrderedDict(net_mutated)
     state_dict_loaded = state['network']
-    self.load_state_dict(state_dict=state_dict_loaded)
+
+    self.load_state_dict(state_dict=state_dict_loaded, strict=False)
     self.starting_iter = state['current_iter']
 
     return state

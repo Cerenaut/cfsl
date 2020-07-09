@@ -210,19 +210,14 @@ class FewShotLearningDatasetParallel(Dataset):
         x_task = torch.stack(x_task, dim=0)
         y_task = torch.stack(y_task, dim=0).long()
 
-        print('before', y_support_set_task.data)
-
         if not self.overwrite_classes_in_each_task:
             num_support_sets = y_support_set_task.size(0)
-            class_change_factors = np.repeat(np.arange(self.class_change_interval), num_support_sets)
+            class_change_factors = np.repeat(np.arange(num_support_sets), self.class_change_interval)
 
             for i in range(num_support_sets):
               y_support_set_task[i] += class_change_factors[i] * self.num_classes_per_set
               y_target_set_task[i] += class_change_factors[i] * self.num_classes_per_set
 
-        print('after', y_support_set_task.data)
-
-        exit()
         return x_support_set_task, x_target_set_task, y_support_set_task, y_target_set_task, x_task, y_task
 
     def set_current_iter_idx(self, idx):
