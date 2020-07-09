@@ -48,6 +48,8 @@ class Classifier(nn.Module):
       self.optimizer.zero_grad()
 
     inputs = torch.flatten(inputs, start_dim=1)
+    inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min())
+
     preds = self.model(inputs)
 
     if not isinstance(labels, torch.Tensor):

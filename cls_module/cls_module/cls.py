@@ -4,6 +4,7 @@ import collections
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import torchvision
 
@@ -115,13 +116,14 @@ class CLS(nn.Module):
   def consolidate(self, inputs, labels):
     return self.forward(inputs, labels, mode='consolidate')
 
-  def forward(self, inputs, labels=None, mode='pretrain'):  # pylint: disable=arguments-differ
+  def forward(self, inputs, labels=None, mode=None):  # pylint: disable=arguments-differ
     """Perform an optimisation step with the entire CLS module."""
     if mode not in self.step:
       self.step[mode] = 0
 
     losses = {}
     outputs = {}
+    accuracies = {}
 
     # Freeze ALL except LTM feature extractor for pretraining
     if mode == 'pretrain':
@@ -143,7 +145,10 @@ class CLS(nn.Module):
       self.train()
       self.freeze([self.ltm_key + '.vc', self.stm_key])
 
-    # DEBUG: Check training status
+    else:
+      raise NotImplementedError('Mode not supported.')
+
+    # # DEBUG: Check training status
     # if self.previous_mode != mode:
     #   print('Previous Mode =', self.previous_mode)
     #   print('Current Mode =', mode)
@@ -155,11 +160,22 @@ class CLS(nn.Module):
     #       print(name, 'is training')
 
     losses[self.ltm_key], outputs[self.ltm_key] = self.ltm(inputs=inputs, targets=inputs, labels=labels)
+    preds = outputs[self.ltm_key]['classifier']['predictions']
+
+    if preds is not None:
+      softmax_preds = F.softmax(preds, dim=1).argmax(dim=1)
+      accuracies[self.ltm_key] = torch.eq(softmax_preds, labels).data.cpu().float().mean()
 
     if mode in ['study', 'recall']:
       stm_input = outputs[self.ltm_key]['memory']['output'].detach()  # Ensures no gradients pass through modules
 
       losses[self.stm_key], outputs[self.stm_key] = self.stm(inputs=stm_input, targets=inputs, labels=labels)
+
+      preds = outputs[self.stm_key]['classifier']['predictions']
+
+      if preds is not None:
+        softmax_preds = F.softmax(preds, dim=1).argmax(dim=1)
+        accuracies[self.stm_key] = torch.eq(softmax_preds, labels).data.cpu().float().mean()
 
       self.features[mode]['inputs'] = inputs
       self.features[mode]['labels'] = labels
@@ -178,6 +194,9 @@ class CLS(nn.Module):
                                    summary_step)
 
       self.writer.add_image(mode + '/inputs', torchvision.utils.make_grid(inputs), summary_step)
+
+      for module_name, accuracy_value in accuracies.items():
+        self.writer.add_scalar(mode + '/' + module_name + '/classifier/accuracy', accuracy_value, summary_step)
 
       for module_name in outputs:
         for submodule_name in outputs[module_name]:
