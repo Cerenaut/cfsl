@@ -2,7 +2,7 @@
 
 import torch.nn as nn
 
-from cls_module.components.classifier import Classifier
+from cls_module.components.label_learner import LabelLearner
 
 class MemoryInterface(nn.Module):
   """An implementation of a short-term memory module using a simple autoencoder."""
@@ -39,7 +39,7 @@ class MemoryInterface(nn.Module):
     if not 'classifier' in self.config:
       raise KeyError('Classifier configuration not found.')
 
-    classifier = Classifier(input_shape, self.config['classifier'])
+    classifier = LabelLearner(input_shape, self.config['classifier'])
     self.add_module('classifier', classifier)
 
   def forward_memory(self, inputs, targets, labels):

@@ -1,22 +1,24 @@
 """cls_few_shot_classifier.py"""
 
 import os
-from collections import OrderedDict, defaultdict
+import random
+
+from collections import OrderedDict
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim import AdamW
-
-from cls_module.cls import CLS
-from cls_module.components.classifier import Classifier
-
-from utils.generic import set_torch_seed, calculate_cosine_distance
 
 import torchvision
 import matplotlib.pyplot as plt
+
+from cls_module.cls import CLS
+from cls_module.components.label_learner import LabelLearner
+
+from utils.generic import set_torch_seed, calculate_cosine_distance
+
 
 class CLSFewShotClassifier(nn.Module):
   """Few shot classifier based on CLS module."""
@@ -53,13 +55,8 @@ class CLSFewShotClassifier(nn.Module):
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
 
     # Build a simple predictor for pre-training phase
-    self.pretrain_predictor = Classifier(input_shape=self.model.ltm.output_shape,
-                                         config={
-                                             'hidden_units': [800],
-                                             'output_units': 2000,
-                                             'learning_rate': self.min_learning_rate,
-                                             'weight_decay': self.weight_decay
-                                         })
+    self.pretrain_predictor = LabelLearner(input_shape=self.model.ltm.output_shape,
+                                           config=self.cls_config['pretrain_predictor'])
 
     # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
@@ -109,12 +106,10 @@ class CLSFewShotClassifier(nn.Module):
     """
     del training_phase
 
-    self.model.reset()
-
     x_support_set, x_target_set, y_support_set, y_target_set, *_ = data_batch
 
-    num_study_steps = 120
-    num_consolidation_steps = 160
+    num_study_steps = self.cls_config['study_steps']
+    num_consolidation_steps = self.cls_config['consolidation_steps']
 
     per_task_preds = []
     per_task_ltm_loss = []
@@ -123,8 +118,14 @@ class CLSFewShotClassifier(nn.Module):
     per_task_stm_loss = []
     per_task_stm_accuracy = []
 
+    def compute_accuracy(preds, y):
+      softmax_preds = F.softmax(preds, dim=1).argmax(dim=1)
+      return torch.eq(softmax_preds, y).data.cpu().float().mean()
+
     for _, (x_support_set_task, y_support_set_task, x_target_set_task, y_target_set_task) in \
             enumerate(zip(x_support_set, y_support_set, x_target_set, y_target_set)):
+
+      self.model.reset()
 
       c, h, w = x_target_set_task.shape[-3:]
       x_target_set_task = x_target_set_task.view(-1, c, h, w).to(self.device)
@@ -132,8 +133,13 @@ class CLSFewShotClassifier(nn.Module):
 
       step_idx = 0
 
-      if not self.training:
-        self.train()
+      per_support_stm_accuracy = []
+      per_support_ltm_accuracy = []
+
+      replay_buffer = {
+          'inputs': [],
+          'labels': []
+      }
 
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
             enumerate(zip(x_support_set_task, y_support_set_task)):
@@ -142,24 +148,48 @@ class CLSFewShotClassifier(nn.Module):
         x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
         y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
 
-        print('Memorising Support Set =', y_support_set)
-
         # Memorise the support sets in STM
+        self.train()
         for _ in range(num_study_steps):
-          self.model.memorise(inputs=x_support_set_sub_task, labels=y_support_set_sub_task)
+          _, support_outputs = self.model.memorise(inputs=x_support_set_sub_task,
+                                                   labels=y_support_set_sub_task)
           step_idx += 1
 
-        # TODO:
-        # 1. Spontanious recall to retrieve old samples
-        # 2. Interleave current support set with recalled samples
+        support_stm_images = support_outputs['stm']['memory']['decoding']
+        support_stm_preds = support_outputs['stm']['classifier']['predictions']
+        support_stm_softmax_preds = F.softmax(support_stm_preds, dim=1).argmax(dim=1)
+        support_stm_accuracy = torch.eq(support_stm_softmax_preds, y_support_set_sub_task).data.cpu().float().mean()
 
-        replay_inputs = x_support_set_sub_task
-        replay_labels = y_support_set_sub_task
+        per_support_stm_accuracy.append(support_stm_accuracy)
+
+        def build_replay_set(replay_buffer, support_x, y_support):
+          x_replay_set = [support_x]
+          y_replay_set = [y_support]
+
+          if replay_buffer['inputs'] and replay_buffer['labels']:
+            replay_random_idx = random.choice(np.arange(len(replay_buffer['inputs'])))
+
+            x_replay_set.append(replay_buffer['inputs'][replay_random_idx])
+            y_replay_set.append(replay_buffer['labels'][replay_random_idx])
+
+          return torch.cat(x_replay_set), torch.cat(y_replay_set)
 
         # Consolidate replayed inputs into LTM
+        self.train()
         for _ in range(num_consolidation_steps):
-          self.model.consolidate(inputs=replay_inputs, labels=replay_labels)
+          x_replay_set, y_replay_set = build_replay_set(
+              replay_buffer, x_support_set_sub_task, y_support_set_sub_task)
+
+          self.model.consolidate(inputs=x_replay_set, labels=y_replay_set)
           step_idx += 1
+
+        support_ltm_preds = support_outputs['ltm']['classifier']['predictions']
+        support_ltm_accuracy = compute_accuracy(support_ltm_preds, y_support_set_sub_task)
+        per_support_ltm_accuracy.append(support_ltm_accuracy)
+
+        # TODO: Spontanious recall to retrieve old samples
+        replay_buffer['inputs'].append(support_stm_images)
+        replay_buffer['labels'].append(support_stm_softmax_preds)
 
       if self.training:
         self.eval()
@@ -169,24 +199,25 @@ class CLSFewShotClassifier(nn.Module):
       step_idx += 1
 
       target_ltm_preds = target_outputs['ltm']['classifier']['predictions']
-      softmax_target_ltm_preds = F.softmax(target_ltm_preds, dim=1).argmax(dim=1)
-      target_ltm_accuracy = torch.eq(softmax_target_ltm_preds, y_target_set_task).data.cpu().float().mean()
+      target_ltm_accuracy = compute_accuracy(target_ltm_preds, y_target_set_task)
 
       per_task_preds.append(target_ltm_preds.detach().cpu().numpy())
       per_task_ltm_loss.append(target_losses['ltm']['memory']['loss'])
       per_task_ltm_accuracy.append(target_ltm_accuracy)
 
       target_stm_preds = target_outputs['stm']['classifier']['predictions']
-      softmax_target_stm_preds = F.softmax(target_stm_preds, dim=1).argmax(dim=1)
-      target_stm_accuracy = torch.eq(softmax_target_stm_preds, y_target_set_task).data.cpu().float().mean()
+      target_stm_accuracy = compute_accuracy(target_stm_preds, y_target_set_task)
 
       per_task_stm_loss.append(target_losses['stm']['memory']['loss'])
       per_task_stm_accuracy.append(target_stm_accuracy)
 
     loss_metric_dict = dict()
-    loss_metric_dict['target_ltm_loss'] = per_task_ltm_loss
+    loss_metric_dict['support_ltm_accuracy'] = per_support_ltm_accuracy
+    loss_metric_dict['support_stm_accuracy'] = per_support_stm_accuracy
+
+    # loss_metric_dict['target_ltm_loss'] = per_task_ltm_loss
     loss_metric_dict['target_ltm_accuracy'] = per_task_ltm_accuracy
-    loss_metric_dict['target_stm_loss'] = per_task_stm_loss
+    # loss_metric_dict['target_stm_loss'] = per_task_stm_loss
     loss_metric_dict['target_stm_accuracy'] = per_task_stm_accuracy
 
     losses = self.get_across_task_loss_metrics(total_losses=per_task_ltm_loss,

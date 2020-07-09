@@ -1,4 +1,4 @@
-"""Classifier class."""
+"""LabelLearner class."""
 
 from collections import OrderedDict
 
@@ -9,11 +9,11 @@ import torch.nn as nn
 import torch.optim as optim
 
 
-class Classifier(nn.Module):
+class LabelLearner(nn.Module):
   """A simple, flexible and self-contained classifier module."""
 
   def __init__(self, input_shape, config):
-    super(Classifier, self).__init__()
+    super(LabelLearner, self).__init__()
 
     self.config = config
     self.input_shape = list(input_shape)
