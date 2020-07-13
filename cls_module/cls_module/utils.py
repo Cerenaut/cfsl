@@ -30,6 +30,7 @@ def activation_fn(fn_type):
 
   return fn
 
+
 def build_topk_mask(x, dim=1, k=2):
   """
   Simple functional version of KWinnersMask/KWinners since
@@ -39,6 +40,7 @@ def build_topk_mask(x, dim=1, k=2):
   _, indices = torch.topk(x, k=k, dim=dim, sorted=False)
   return res.scatter(dim, indices, 1)
 
+
 def truncated_normal_(tensor, mean=0, std=1):
   size = tensor.shape
   tmp = tensor.new_empty(size + (4,)).normal_()
@@ -47,3 +49,27 @@ def truncated_normal_(tensor, mean=0, std=1):
   tensor.data.copy_(tmp.gather(-1, ind).squeeze(-1))
   tensor.data.mul_(std).add_(mean)
   return tensor
+
+
+def initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'):
+  """Initialize nn.Module parameters."""
+  if not isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+    return
+
+  weight_init_fn = get_initializer_by_name(weight_init)
+
+  if m.weight is not None and weight_init_fn is not None:
+    weight_init_fn(m.weight)
+
+  bias_init_fn = get_initializer_by_name(bias_init)
+
+  if m.bias is not None:
+    bias_init_fn(m.bias)
+
+
+def get_initializer_by_name(init_type):
+  # Handle custom initializers
+  if init_type == 'truncated_normal_':
+    return truncated_normal_
+
+  return getattr(torch.nn.init, init_type, None)

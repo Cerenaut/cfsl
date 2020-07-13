@@ -12,12 +12,22 @@ class SparseAutoencoder(nn.Module):
   """Standard EC with decoder layers removed and maxpool added.
   """
 
-  def __init__(self, input_shape, config):
+  def __init__(self, input_shape, config, output_shape=None):
     super(SparseAutoencoder, self).__init__()
 
     self.input_shape = list(input_shape)
     self.input_size = np.prod(self.input_shape[1:])
     self.config = config
+
+    if output_shape is None:
+      self.output_shape = self.input_shape
+      self.output_size = self.input_size
+    else:
+      self.output_shape = list(output_shape)
+      self.output_size = np.prod(self.output_shape[1:])
+
+    self.input_shape[0] = -1
+    self.output_shape[0] = -1
 
     self.encoder = self.build_encoder()
     self.decoder = self.build_decoder(self.encoder, tied_weights=self.config['use_tied_weights'])
@@ -25,14 +35,8 @@ class SparseAutoencoder(nn.Module):
     self.encoder_nonlinearity = activation_fn(self.config['encoder_nonlinearity'])
     self.decoder_nonlinearity = activation_fn(self.config['decoder_nonlinearity'])
 
-  @property
-  def output_shape(self):
-    shape = list(self.encoder(torch.rand(*(self.input_shape))).data.shape)
-    shape[0] = -1
-    return shape
-
   def initialize(self, m):
-    if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
       torch.nn.init.xavier_uniform_(m.weight)
       m.weight.data = truncated_normal_(m.weight.data, std=0.03)
       if m.bias is not None:
@@ -116,11 +120,16 @@ class SparseAutoencoder(nn.Module):
   def decode(self, encoding):
     decoding = self.decoder(encoding)
     decoding = self.decoder_nonlinearity(decoding)
+    decoding = torch.reshape(decoding, self.output_shape)
 
     return decoding
 
   def forward(self, x):  # pylint: disable=arguments-differ
     encoding = self.encode(x)
-    encoding = self.filter(encoding)
+
+    if self.config['sparsity'] > 0:
+      encoding = self.filter(encoding)
+
     decoding = self.decode(encoding)
+
     return encoding, decoding

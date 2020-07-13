@@ -1,11 +1,13 @@
 """FastNN class."""
 
+from collections import defaultdict
+
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
 
-from cls_module.components.simple_autoencoder import SimpleAutoencoder
 from cls_module.memory.interface import MemoryInterface
+from cls_module.components.simple_autoencoder import SimpleAutoencoder
 
 
 class FastNN(MemoryInterface):
@@ -14,12 +16,16 @@ class FastNN(MemoryInterface):
   global_key = 'stm'
   local_key = 'fastnn'
 
+  def reset(self):
+    self.fastnn.reset_parameters()
+    self.fastnn_optimizer.state = defaultdict(dict)
+
   def build(self):
     """Build FastNN as short-term memory module."""
     fastnn = SimpleAutoencoder(self.input_shape, self.config, output_shape=self.target_shape).to(self.device)
     fastnn_optimizer = optim.AdamW(fastnn.parameters(),
                                    lr=self.config['learning_rate'],
-                                   weight_decay=self.config['l2_penalty'])
+                                   weight_decay=self.config['weight_decay'])
 
     self.add_module(self.local_key, fastnn)
     self.add_optimizer(self.local_key, fastnn_optimizer)

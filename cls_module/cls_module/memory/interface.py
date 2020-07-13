@@ -1,5 +1,6 @@
-"""FastNN class."""
+"""MemoryInterface class."""
 
+import torch
 import torch.nn as nn
 
 from cls_module.components.label_learner import LabelLearner
@@ -27,6 +28,16 @@ class MemoryInterface(nn.Module):
 
     if self.global_key in self.config:
       self.config = self.config[self.global_key]
+
+  def compute_output_shape(self, fn, input_shape=None):
+    if input_shape is None:
+      input_shape = self.input_shape
+
+    with torch.no_grad():
+      sample_output = fn(torch.rand(1, *(input_shape[1:])))
+      output_shape = list(sample_output.data.shape)
+      output_shape[0] = -1
+    return output_shape
 
   def add_optimizer(self, name, optimizer):
     setattr(self, name + '_optimizer', optimizer)
