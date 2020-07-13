@@ -118,6 +118,9 @@ class CLS(nn.Module):
 
   def forward(self, inputs, labels=None, mode=None):  # pylint: disable=arguments-differ
     """Perform an optimisation step with the entire CLS module."""
+    if labels is not None and not isinstance(labels, torch.Tensor):
+      labels = torch.from_numpy(labels)
+
     if mode not in self.step:
       self.step[mode] = 0
 
@@ -179,8 +182,10 @@ class CLS(nn.Module):
 
       self.features[mode]['inputs'] = inputs
       self.features[mode]['labels'] = labels
-      self.features[mode][self.ltm_key] = outputs[self.ltm_key]['memory']['encoding']
-      self.features[mode][self.stm_key] = outputs[self.stm_key]['memory']['decoding']
+      self.features[mode][self.ltm_key + '_encoding'] = outputs[self.ltm_key]['memory']['encoding']
+      self.features[mode][self.stm_key + '_encoding'] = outputs[self.stm_key]['memory']['encoding']
+      self.features[mode][self.ltm_key + '_decoding'] = outputs[self.ltm_key]['memory']['decoding']
+      self.features[mode][self.stm_key + '_decoding'] = outputs[self.stm_key]['memory']['decoding']
 
     # Add summaries to TensorBoard
     if self.writer:

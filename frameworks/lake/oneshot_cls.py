@@ -18,6 +18,7 @@ import utils
 from omniglot_one_shot_dataset import OmniglotTransformation, OmniglotOneShotDataset
 from lake_oneshot_metrics import LakeOneshotMetrics
 
+LOG_EVERY = 20
 
 def main():
   parser = argparse.ArgumentParser(description='Complementary Learning System: One-shot Learning Experiments')
@@ -43,7 +44,7 @@ def main():
   ])
 
   image_shape = config['image_shape']
-  pretrained_model_path = config['pretrained_model_path']
+  pretrained_model_path = config.get('pretrained_model_path', None)
 
   # Pretraining
   # ---------------------------------------------------------------------------
@@ -61,12 +62,13 @@ def main():
       for batch_idx, (data, target) in enumerate(background_loader):
         data, target = data.to(device), target.to(device)
 
-        losses, _ = model(data, target)
+        losses, _ = model(data, labels=None, mode='pretrain')
+        pretrain_loss = losses['ltm']['memory']['loss'].item()
 
-        if batch_idx % 20 == 0:
+        if batch_idx % LOG_EVERY == 0:
           print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
               epoch, batch_idx * len(data), len(background_loader.dataset),
-              100. * batch_idx / len(background_loader), losses['ltm'].item()))
+              100. * batch_idx / len(background_loader), pretrain_loss))
 
     pretrained_model_path = os.path.join(summary_dir, 'pretrained_model_' + str(epoch) + '.pt')
 
@@ -107,8 +109,11 @@ def main():
     # Study
     # --------------------------------------------------------------------------
     model.train()
-    for _ in range(config['study_steps']):
+    for step in range(config['study_steps']):
       model(study_data, study_target, mode='study')
+
+      if step % LOG_EVERY == 0:
+        print('Run #{}: [{}/{}]'.format(idx, step, config['study_steps']))
 
     # Recall
     # --------------------------------------------------------------------------
@@ -116,14 +121,15 @@ def main():
     with torch.no_grad():
       model(recall_data, recall_target, mode='recall')
 
-      results = lake_oneshot_metrics.compute(model.features['study'], model.features['recall'], modes=['oneshot'])
+      results = lake_oneshot_metrics.compute(model.features['study'], model.features['recall'],
+                                             modes=['oneshot'])
       lake_oneshot_metrics.report(results)
 
-      summary_names = ['study_inputs', 'recall_inputs', 'recall_stm']
+      summary_names = ['study_inputs', 'recall_inputs', 'recall_stm_decoding']
       summary_images = []
 
       for name in summary_names:
-        mode_key, feature_key = name.split('_')
+        mode_key, feature_key = name.split('_', 1)
         summary_features = model.features[mode_key][feature_key]
         summary_features = summary_features.permute(0, 2, 3, 1)
 

@@ -72,9 +72,6 @@ class LabelLearner(nn.Module):
 
     preds = self.model(inputs)
 
-    if not isinstance(labels, torch.Tensor):
-      labels = torch.from_numpy(labels)
-
     loss = self.loss(preds, labels)
 
     if self.training:
