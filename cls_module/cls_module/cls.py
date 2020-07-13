@@ -52,7 +52,7 @@ class CLS(nn.Module):
 
     stm_config = self.config[self.stm_key]
     stm_ = stm.FastNN(config=stm_config,
-                      input_shape=ltm_.output_shape,
+                      input_shape=ltm_config['output_shape'],
                       target_shape=self.input_shape,
                       device=self.device,
                       writer=self.writer)
@@ -60,17 +60,17 @@ class CLS(nn.Module):
     self.add_module(self.ltm_key, ltm_)
     self.add_module(self.stm_key, stm_)
 
-  def reset(self):
+  def reset(self, names=None):
     """Reset relevant sub-modules."""
-    def weight_reset(m):
-      if isinstance(m, (nn.Conv2d, nn.Linear)):
-        m.reset_parameters()
+    if names is None:
+      names = ['ltm.classifier', 'stm']
 
-    self.ltm.classifier.apply(weight_reset)
-    self.ltm.classifier.optimizer.state = collections.defaultdict(dict)
+    if 'ltm.classifier' in names:
+      self.ltm.classifier.reset()
 
-    self.stm.apply(weight_reset)
-    self.stm.classifier.optimizer.state = collections.defaultdict(dict)
+    if 'stm' in names:
+      self.stm.reset()
+      self.stm.classifier.reset()
 
   def freeze(self, names):
     """Selectively freeze sub-modules."""

@@ -31,7 +31,7 @@ class VisualComponent(MemoryInterface):
       self.output_shape[0] = -1
 
     if 'classifier' in self.config:
-      self.build_classifier(input_shape=self.output_shape)
+      self.build_classifier(input_shape=self.config['output_shape'])
 
   def forward_memory(self, inputs, targets, labels):
     """Perform an optimization step using the memory module."""
@@ -40,7 +40,12 @@ class VisualComponent(MemoryInterface):
     if self.vc.training:
       self.vc_optimizer.zero_grad()
 
-    encoding, decoding = self.vc(inputs)
+    # Optionally use different stride at test time
+    stride = self.config['stride']
+    if not self.vc.training and 'eval_stride' in self.config:
+      stride = self.config['eval_stride']
+
+    encoding, decoding = self.vc(inputs, stride)
     loss = F.mse_loss(decoding, targets)
 
     if self.vc.training:
@@ -70,5 +75,13 @@ class VisualComponent(MemoryInterface):
           kernel_size=self.config['output_pool_size'],
           stride=self.config['output_pool_stride'],
           padding=pool_padding)
+
+    if self.config['output_norm_per_sample']:
+      frobenius_norm = torch.sqrt(
+          torch.sum(torch.square(encoding),
+                    dim=[1, 2, 3],
+                    keepdim=True)
+      )
+      encoding = encoding / frobenius_norm
 
     return encoding

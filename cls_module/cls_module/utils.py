@@ -73,3 +73,63 @@ def get_initializer_by_name(init_type):
     return truncated_normal_
 
   return getattr(torch.nn.init, init_type, None)
+
+
+def reduce_max(x, dim=0, keepdim=False):
+  """
+  Performs `torch.max` over multiple dimensions of `x`
+  """
+  axes = sorted(dim)
+  maxed = x
+  for axis in reversed(axes):
+    maxed, _ = maxed.max(axis, keepdim)
+  return maxed
+
+def get_top_k(x, k, mask_type="pass_through", topk_dim=0, scatter_dim=0):
+  """Finds the top k values in a tensor, returns them as a tensor.
+
+  Accepts a tensor as input and returns a tensor of the same size. Values
+  in the top k values are preserved or converted to 1, remaining values are
+  floored to 0 or -1.
+
+      Example:
+          >>> a = torch.tensor([1, 2, 3])
+          >>> k = 1
+          >>> ans = get_top_k(a, k)
+          >>> ans
+          torch.tensor([0, 0, 3])
+
+  Args:
+      x: (tensor) input.
+      k: (int) how many top k examples to return.
+      mask_type: (string) Options: ['pass_through', 'hopfield', 'binary']
+      topk_dim: (int) Which axis do you want to grab topk over? ie. batch = 0
+      scatter_dim: (int) Make it the same as topk_dim to scatter the values
+  """
+
+  # Initialize zeros matrix
+  zeros = torch.zeros_like(x)
+
+  # find top k vals, indicies
+  vals, idx = torch.topk(x, k, dim=topk_dim)
+
+  # Scatter vals onto zeros
+  top_ks = zeros.scatter(scatter_dim, idx, vals)
+
+  if mask_type != "pass_through":
+    # pass_through does not convert any values.
+
+    if mask_type == "binary":
+      # Converts values to 0, 1
+      top_ks[top_ks > 0.] = 1.
+      top_ks[top_ks < 1.] = 0.
+
+    elif mask_type == "hopfield":
+      # Converts values to -1, 1
+      top_ks[top_ks >= 0.] = 1.
+      top_ks[top_ks < 1.] = -1.
+
+    else:
+      raise Exception('Valid options: "pass_through", "hopfield" (-1, 1), or "binary" (0, 1)')
+
+  return top_ks

@@ -38,20 +38,23 @@ class SimpleAutoencoder(nn.Module):
     self.encoder_nonlinearity = activation_fn(self.config['encoder_nonlinearity'])
     self.decoder_nonlinearity = activation_fn(self.config['decoder_nonlinearity'])
 
-    self.encoder_dropout = nn.Dropout(p=self.config['dropout'])
-
     self.reset_parameters()
 
   def reset_parameters(self):
-    self.apply(lambda m: initialize_parameters(m, weight_init='xavier_normal_', bias_init='zeros_'))
+    self.apply(lambda m: initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'))
 
   def encode(self, inputs):
     inputs = torch.flatten(inputs, start_dim=1)
     inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min())
 
+    if self.config['input_dropout'] > 0:
+      inputs = F.dropout(inputs, p=self.config['input_dropout'], training=self.traiining)
+
     encoding = self.encoder(inputs)
     encoding = self.encoder_nonlinearity(encoding)
-    encoding = self.encoder_dropout(encoding)
+
+    if self.config['hidden_dropout'] > 0:
+      encoding = F.dropout(encoding, p=self.config['hidden_dropout'], training=self.traiining)
 
     return encoding
 
