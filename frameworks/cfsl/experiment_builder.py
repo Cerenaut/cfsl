@@ -36,7 +36,7 @@ class ExperimentBuilder(object):
 
         for key, value in args.__dict__.items():
             setattr(self, key, value)
-
+        
         if continue_from_epoch == 'from_scratch':
             self.create_summary_csv = True
 
@@ -350,27 +350,30 @@ class ExperimentBuilder(object):
                         current_iter=self.state['current_iter'],
                         sample_idx=self.state['current_iter'])
 
+                    validate = False
                     better_val_model = False
                     if self.state['current_iter'] % self.total_iter_per_epoch == 0:
 
                         total_losses = dict()
                         val_losses = dict()
-                        # with tqdm.tqdm(total=len(self.data['val'])) as pbar_val:
-                        with tqdm.tqdm(total=int(self.num_evaluation_tasks / self.batch_size)) as pbar_val:
-                            for val_sample_idx, val_sample in enumerate(
-                                    self.data['val']):
+                        if validate:
+                          # with tqdm.tqdm(total=len(self.data['val'])) as pbar_val:
+                          with tqdm.tqdm(total=int(self.num_evaluation_tasks / self.batch_size)) as pbar_val:
+                              for val_sample_idx, val_sample in enumerate(self.data['val']):
+                                  val_sample = self.convert_into_continual_tasks(val_sample)
+                                  val_losses, total_losses = self.evaluation_iteration(val_sample=val_sample,
+                                                                                      total_losses=total_losses,
+                                                                                      pbar_val=pbar_val, phase='val')
 
-                                val_sample = self.convert_into_continual_tasks(val_sample)
-                                val_losses, total_losses = self.evaluation_iteration(val_sample=val_sample,
-                                                                                     total_losses=total_losses,
-                                                                                     pbar_val=pbar_val, phase='val')
+                                  if val_sample_idx == (pbar_val.total - 1):
+                                    break
 
-                            if val_losses["val_accuracy_mean"] > self.state['best_val_acc']:
-                                print("Best validation accuracy", val_losses["val_accuracy_mean"])
-                                self.state['best_val_acc'] = val_losses["val_accuracy_mean"]
-                                self.state['best_val_iter'] = self.state['current_iter']
-                                self.state['best_epoch'] = int(
-                                    self.state['best_val_iter'] / self.total_iter_per_epoch)
+                              if val_losses["val_accuracy_mean"] > self.state['best_val_acc']:
+                                  print("Best validation accuracy", val_losses["val_accuracy_mean"])
+                                  self.state['best_val_acc'] = val_losses["val_accuracy_mean"]
+                                  self.state['best_val_iter'] = self.state['current_iter']
+                                  self.state['best_epoch'] = int(
+                                      self.state['best_val_iter'] / self.total_iter_per_epoch)
 
                         self.epoch += 1
                         self.state = self.merge_two_dicts(first_dict=self.merge_two_dicts(first_dict=self.state,
