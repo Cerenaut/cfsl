@@ -23,7 +23,9 @@ class DG(nn.Module):
 
     self.layer = nn.Linear(self.input_size, self.config['num_units'], bias=False)
     self.layer.weight.requires_grad = False
+
     self.initialize()
+    # nn.init.xavier_uniform_(self.layer.weight)
 
   def initialize(self):
     """Custom initialization *does* make a big difference to orthogonality, even with inhibition"""

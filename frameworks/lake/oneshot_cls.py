@@ -137,6 +137,7 @@ def main():
         summary_images.append(summary_image)
 
       utils.add_completion_summary(summary_images, summary_dir, idx, save_figs=True)
+    exit()
 
   lake_oneshot_metrics.report_averages()
 

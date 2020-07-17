@@ -72,7 +72,7 @@ class MemoryInterface(nn.Module):
         'predictions': None
     }
 
-    if labels is not None:
+    if getattr(self, 'classifier', None) and labels is not None:
       classifier_input = outputs['memory']['output'].detach()
       classifier_loss, preds = self.classifier(classifier_input, labels)
 

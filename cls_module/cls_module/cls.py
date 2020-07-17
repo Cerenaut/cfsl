@@ -51,11 +51,14 @@ class CLS(nn.Module):
                                writer=self.writer)
 
     stm_config = self.config[self.stm_key]
-    stm_ = stm.FastNN(config=stm_config,
-                      input_shape=ltm_config['output_shape'],
-                      target_shape=self.input_shape,
-                      device=self.device,
-                      writer=self.writer)
+    stm_class = stm.AHA
+    # stm_class = stm.FastNN
+
+    stm_ = stm_class(config=stm_config,
+                     input_shape=ltm_config['output_shape'],
+                     target_shape=self.input_shape,
+                     device=self.device,
+                     writer=self.writer)
 
     self.add_module(self.ltm_key, ltm_)
     self.add_module(self.stm_key, stm_)
@@ -183,38 +186,50 @@ class CLS(nn.Module):
       self.features[mode]['inputs'] = inputs
       self.features[mode]['labels'] = labels
       self.features[mode][self.ltm_key + '_encoding'] = outputs[self.ltm_key]['memory']['encoding']
-      self.features[mode][self.stm_key + '_encoding'] = outputs[self.stm_key]['memory']['encoding']
       self.features[mode][self.ltm_key + '_decoding'] = outputs[self.ltm_key]['memory']['decoding']
+      self.features[mode][self.stm_key + '_encoding'] = outputs[self.stm_key]['memory']['encoding']
       self.features[mode][self.stm_key + '_decoding'] = outputs[self.stm_key]['memory']['decoding']
+      self.features[mode].update(self.stm.features)
 
     # Add summaries to TensorBoard
     if self.writer:
       summary_step = self.step[mode]
 
-      for module_name in losses:
-        for submodule_name in losses[module_name]:
-          for metric_key, metric_value in losses[module_name][submodule_name].items():
-            self.writer.add_scalar(mode + '/' + module_name + '/' + submodule_name + '/' + metric_key,
-                                   metric_value,
-                                   summary_step)
+      self.write_loss_summary(self.writer, losses, mode, summary_step)
+      self.write_accuracy_summary(self.writer, accuracies, mode, summary_step)
+      self.write_output_summaries(self.writer, outputs, mode, summary_step)
 
       self.writer.add_image(mode + '/inputs', torchvision.utils.make_grid(inputs), summary_step)
-
-      for module_name, accuracy_value in accuracies.items():
-        self.writer.add_scalar(mode + '/' + module_name + '/classifier/accuracy', accuracy_value, summary_step)
-
-      for module_name in outputs:
-        for submodule_name in outputs[module_name]:
-          for metric_key, metric_value in outputs[module_name][submodule_name].items():
-            if metric_key not in ['decoding']:
-              continue
-
-            self.writer.add_image(mode + '/' + module_name + '/' + submodule_name + '/' + metric_key,
-                                  torchvision.utils.make_grid(metric_value),
-                                  summary_step)
 
       self.writer.flush()
 
     self.step[mode] += 1
 
     return losses, outputs
+
+  def write_loss_summary(self, writer, losses, mode, summary_step):
+    for module_name in losses:
+      for submodule_name in losses[module_name]:
+        for metric_key, metric_value in losses[module_name][submodule_name].items():
+          scope = mode + '/' + module_name + '/' + submodule_name + '/' + metric_key
+
+          if isinstance(metric_value, dict):
+            for submetric_key, submetric_value in metric_value.items():
+              writer.add_scalar(scope + '/' + submetric_key, submetric_value, summary_step)
+          else:
+            writer.add_scalar(scope, metric_value, summary_step)
+
+  def write_accuracy_summary(self, writer, accuracies, mode, summary_step):
+    for module_name, accuracy_value in accuracies.items():
+      writer.add_scalar(mode + '/' + module_name + '/classifier/accuracy', accuracy_value, summary_step)
+
+  def write_output_summaries(self, writer, outputs, mode, summary_step):
+    for module_name in outputs:
+      for submodule_name in outputs[module_name]:
+        for metric_key, metric_value in outputs[module_name][submodule_name].items():
+          if metric_key not in ['decoding']:
+            continue
+
+          writer.add_image(mode + '/' + module_name + '/' + submodule_name + '/' + metric_key,
+                           torchvision.utils.make_grid(metric_value),
+                           summary_step)

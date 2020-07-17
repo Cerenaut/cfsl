@@ -2,6 +2,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -48,13 +49,13 @@ class SimpleAutoencoder(nn.Module):
     inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min())
 
     if self.config['input_dropout'] > 0:
-      inputs = F.dropout(inputs, p=self.config['input_dropout'], training=self.traiining)
+      inputs = F.dropout(inputs, p=self.config['input_dropout'], training=self.training)
 
     encoding = self.encoder(inputs)
     encoding = self.encoder_nonlinearity(encoding)
 
     if self.config['hidden_dropout'] > 0:
-      encoding = F.dropout(encoding, p=self.config['hidden_dropout'], training=self.traiining)
+      encoding = F.dropout(encoding, p=self.config['hidden_dropout'], training=self.training)
 
     return encoding
 
