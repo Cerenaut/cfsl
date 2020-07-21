@@ -103,7 +103,7 @@ class AHA(MemoryInterface):
 
   def build_ps(self, ps_config, ps_input_shape):
     """Build the Pattern Separation (PS) module."""
-    ps = DG(ps_input_shape, ps_config)
+    ps = DG(ps_input_shape, ps_config).to(self.device)
     ps_output_shape = [1, ps_config['num_units']]
 
     self.add_module('ps', ps)
@@ -115,7 +115,7 @@ class AHA(MemoryInterface):
 
   def build_pr(self, pr_config, pr_input_shape, pr_target_shape):
     """Builds the Pattern Retrieval (PR) module."""
-    pr = SimpleAutoencoder(pr_input_shape, pr_config, output_shape=pr_target_shape)
+    pr = SimpleAutoencoder(pr_input_shape, pr_config, output_shape=pr_target_shape).to(self.device)
     pr_optimizer = optim.AdamW(pr.parameters(),
                                lr=pr_config['learning_rate'],
                                weight_decay=pr_config['weight_decay'])
@@ -214,7 +214,7 @@ class AHA(MemoryInterface):
     if self.training:
       # Range shift from unit to signed unit
       if pc_config['shift_range']:
-        inputs = unit_to_pc_linear(inputs)
+        inputs = dg_to_pc(inputs)
 
       # Memorise inputs in buffer
       self.pc_buffer = inputs
@@ -231,7 +231,7 @@ class AHA(MemoryInterface):
     return recalled
 
   def build_pm(self, pm_config, pm_input_shape, pm_target_shape):
-    pm = SimpleAutoencoder(pm_input_shape, pm_config, output_shape=pm_target_shape)
+    pm = SimpleAutoencoder(pm_input_shape, pm_config, output_shape=pm_target_shape).to(self.device)
     pm_optimizer = optim.AdamW(pm.parameters(),
                                lr=pm_config['learning_rate'],
                                weight_decay=pm_config['weight_decay'])
@@ -284,11 +284,11 @@ class AHA(MemoryInterface):
     outputs['output'] = outputs['pc'].detach()
 
     self.features = {
-        'ps': outputs['ps'].detach(),
-        'pr': outputs['pr'].detach(),
-        'pc': outputs['pc'].detach(),
+        'ps': outputs['ps'].detach().cpu(),
+        'pr': outputs['pr'].detach().cpu(),
+        'pc': outputs['pc'].detach().cpu(),
 
-        'recon': outputs['pm']['decoding'].detach()
+        'recon': outputs['pm']['decoding'].detach().cpu()
     }
 
     return losses, outputs

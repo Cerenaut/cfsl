@@ -26,7 +26,8 @@ class VisualComponent(MemoryInterface):
 
     # Compute expected output shape
     with torch.no_grad():
-      sample_output = vc.encode(torch.rand(1, *(self.input_shape[1:])))
+      sample_input = torch.rand(1, *(self.input_shape[1:])).to(self.device)
+      sample_output = vc.encode(sample_input)
       sample_output = self.prepare_encoding(sample_output)
 
       self.output_shape = list(sample_output.data.shape)
@@ -64,8 +65,8 @@ class VisualComponent(MemoryInterface):
     }
 
     self.features = {
-        'vc': output_encoding.detach(),
-        'recon': decoding.detach()
+        'vc': output_encoding.detach().cpu(),
+        'recon': decoding.detach().cpu()
     }
 
     return loss, outputs

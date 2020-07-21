@@ -25,7 +25,7 @@ def main():
   parser = argparse.ArgumentParser(description='Complementary Learning System: One-shot Learning Experiments')
   parser.add_argument('--config', nargs="?", type=str, default='config.json',
                       help='Configuration file for experiments.')
-  parser.add_argument('--logging', nargs="?", type=str, default='INFO',
+  parser.add_argument('--logging', nargs="?", type=str, default='warning',
                       help='Logging level.')
 
   args = parser.parse_args()
@@ -109,8 +109,10 @@ def main():
     if idx == 1:
       break
 
-    study_data, study_target = study_data.to(device), np.array(study_target)
-    recall_data, recall_target = recall_data.to(device), np.array(recall_target)
+    study_data = study_data.to(device)
+    study_target = torch.from_numpy(np.array(study_target)).to(device)
+    recall_data = recall_data.to(device)
+    recall_target = torch.from_numpy(np.array(recall_target)).to(device)
 
     # Reset to saved model
     model.load_state_dict(torch.load(pretrained_model_path))
@@ -137,12 +139,10 @@ def main():
 
       summary_names = [
           'study_inputs',
-          'study_stm_ps',
           'study_stm_pr',
           'study_stm_pc',
 
           'recall_inputs',
-          'recall_stm_ps',
           'recall_stm_pr',
           'recall_stm_pc',
           'recall_stm_recon'

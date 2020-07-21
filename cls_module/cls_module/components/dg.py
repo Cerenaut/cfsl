@@ -74,13 +74,15 @@ class DG(nn.Module):
     cells_shape = [hidden_size]
     batch_cells_shape = [batch_size, hidden_size]
 
-    inhibition = torch.zeros(cells_shape)
-    filtered = torch.zeros(batch_cells_shape)
+    device = encoding.device
+
+    inhibition = torch.zeros(cells_shape, device=device)
+    filtered = torch.zeros(batch_cells_shape, device=device)
 
     # Inhibit over time within a batch (because we don't bother having repeats for this).
     for i in range(0, batch_size):
       # Create a mask with a 1 for this batch only
-      this_batch_mask = torch.zeros([batch_size, 1])
+      this_batch_mask = torch.zeros([batch_size, 1], device=device)
       this_batch_mask[i][0] = 1.0
 
       refraction = 1.0 - inhibition
@@ -108,7 +110,6 @@ class DG(nn.Module):
 
   def forward(self, inputs):  # pylint: disable=arguments-differ
     inputs = torch.flatten(inputs, start_dim=1)
-    inputs = inputs.detach()
 
     with torch.no_grad():
       encoding = self.layer(inputs)

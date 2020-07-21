@@ -33,11 +33,14 @@ class SimpleAutoencoder(nn.Module):
 
   def build(self):
     """Build the network architecture."""
+    self.input_norm = nn.BatchNorm1d(self.input_size)
+
     self.encoder = nn.Linear(self.input_size, self.config['num_units'], bias=self.config['use_bias'])
     self.decoder = nn.Linear(self.config['num_units'], self.output_size, bias=self.config['use_bias'])
 
     self.encoder_nonlinearity = utils.activation_fn(self.config['encoder_nonlinearity'])
     self.decoder_nonlinearity = utils.activation_fn(self.config['decoder_nonlinearity'])
+
 
     self.reset_parameters()
 
@@ -99,7 +102,8 @@ class SimpleAutoencoder(nn.Module):
 
     # Normalize the inputs
     if self.config.get('norm_inputs'):
-      x = (x - x.min()) / (x.max() - x.min())
+      x = self.input_norm(x)
+      # x = (x - x.min()) / (x.max() - x.min())
 
     # Optionally add noise to the inputs
     x = self.add_noise(x)

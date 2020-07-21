@@ -124,7 +124,7 @@ class CLS(nn.Module):
   def forward(self, inputs, labels=None, mode=None):  # pylint: disable=arguments-differ
     """Perform an optimisation step with the entire CLS module."""
     if labels is not None and not isinstance(labels, torch.Tensor):
-      labels = torch.from_numpy(labels)
+      labels = torch.from_numpy(labels).to(self.device)
 
     if mode not in self.step:
       self.step[mode] = 0
@@ -185,8 +185,8 @@ class CLS(nn.Module):
         softmax_preds = F.softmax(preds, dim=1).argmax(dim=1)
         accuracies[self.stm_key] = torch.eq(softmax_preds, labels).data.cpu().float().mean()
 
-      self.features[mode]['inputs'] = inputs
-      self.features[mode]['labels'] = labels
+      self.features[mode]['inputs'] = inputs.detach().cpu()
+      self.features[mode]['labels'] = labels.detach().cpu()
 
       for key, value in self.stm.features.items():
         self.features[mode][self.stm_key + '_' + key] = value

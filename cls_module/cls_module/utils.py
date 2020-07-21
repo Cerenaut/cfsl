@@ -202,6 +202,8 @@ def add_image_salt_noise(image, label=None, noise_val=0., noise_factor=0., mode=
   :return:
   """
 
+  device = image.device
+
   image_shape = image.shape
   image_size = np.prod(image_shape[1:])
 
@@ -211,7 +213,7 @@ def add_image_salt_noise(image, label=None, noise_val=0., noise_factor=0., mode=
   np.random.shuffle(noise_mask)
 
   noise_mask = np.reshape(noise_mask, [-1, image_shape[1], image_shape[2], image_shape[3]])
-  noise_mask = torch.from_numpy(noise_mask)
+  noise_mask = torch.from_numpy(noise_mask).to(device)
 
   if mode == 'replace':
     image = image * (1 - noise_mask)  # image: zero out noise positions

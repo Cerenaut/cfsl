@@ -7,7 +7,7 @@
   "pretrain_epochs": 15,
   "pretrain_batch_size": 128,
 
-  "pretrained_model_path": "runs/ltm_pretrain/pretrained_model_15.pt",
+  "pretrained_model_path": "pretrained_model_15.pt",
 
   "study_steps": 120,
   "study_batch_size": 20,
@@ -56,7 +56,7 @@
         "sparsity": 10
     },
     "pc": {
-        "shift_range": false
+        "shift_range": true
     },
     "pr": {
         "learning_rate": 0.01,
@@ -69,7 +69,7 @@
         "encoder_nonlinearity": "leaky_relu",
         "decoder_nonlinearity": "none",
         "use_bias": true,
-        "norm_inputs": false,
+        "norm_inputs": true,
 
         "noise_type": "s",
         "train_with_noise": 0.05,
@@ -78,12 +78,12 @@
         "test_with_noise_pp": 0.0,
 
         "sparsity": 10,
-        "sparsity_boost": 1.5,
-        "sparsen": false,
+        "sparsity_boost": 1.0,
+        "sparsen": true,
         "softmax": false,
-        "shift_bits": true,
+        "shift_bits": false,
         "shift_range": true,
-        "sum_norm": 10.0,
+        "sum_norm": 0.0,
         "gain": 1.0
     },
     "pm": {
