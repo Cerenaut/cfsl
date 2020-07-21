@@ -35,7 +35,20 @@ class SparseAutoencoder(nn.Module):
     self.decoder_nonlinearity = utils.activation_fn(self.config['decoder_nonlinearity'])
 
   def reset_parameters(self):
-    self.apply(lambda m: utils.initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'))
+    # self.apply(lambda m: utils.initialize_parameters(m, weight_init='xavier_normal_', bias_init='zeros_'))
+
+    # Similar initialization to TF implementation of ConvAEs
+    def custom_weight_init(m):
+      if not isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+        return
+
+      if m.weight is not None:
+        utils.truncated_normal_(m.weight, mean=0.0, std=0.03)
+
+      if m.bias is not None:
+        torch.nn.init.zeros_(m.bias)
+
+    self.apply(custom_weight_init)
 
   def build(self):
     self.encoder = nn.Conv2d(self.input_shape[1], self.config['filters'],
@@ -56,7 +69,7 @@ class SparseAutoencoder(nn.Module):
     stride = stride if stride is not None else self.config['stride']
 
     encoding = F.conv2d(inputs, self.encoder.weight,
-                        bias=self.encoder.bias.data,
+                        bias=self.encoder.bias,
                         stride=stride,
                         padding=self.config['padding'])
 

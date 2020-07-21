@@ -3,6 +3,7 @@
 import os
 import json
 import argparse
+import logging
 
 import numpy as np
 
@@ -24,8 +25,13 @@ def main():
   parser = argparse.ArgumentParser(description='Complementary Learning System: One-shot Learning Experiments')
   parser.add_argument('--config', nargs="?", type=str, default='config.json',
                       help='Configuration file for experiments.')
+  parser.add_argument('--logging', nargs="?", type=str, default='INFO',
+                      help='Logging level.')
 
   args = parser.parse_args()
+
+  logging_level = getattr(logging, args.logging.upper(), None)
+  logging.basicConfig(level=logging_level)
 
   with open(args.config) as config_file:
     config = json.load(config_file)
@@ -131,12 +137,12 @@ def main():
 
       summary_names = [
           'study_inputs',
-          'study_ltm_vc',
           'study_stm_ps',
           'study_stm_pr',
+          'study_stm_pc',
 
           'recall_inputs',
-          'recall_ltm_vc',
+          'recall_stm_ps',
           'recall_stm_pr',
           'recall_stm_pc',
           'recall_stm_recon'

@@ -131,8 +131,6 @@ class AHA(MemoryInterface):
       self.pr_optimizer.zero_grad()
 
     _, logits = self.pr(inputs)
-
-    targets = pc_to_unit(targets)  # This means unit range, sparse
     loss = F.binary_cross_entropy_with_logits(logits, targets)
 
     if self.pr.training:
@@ -145,6 +143,9 @@ class AHA(MemoryInterface):
     # Clip
     y = torch.clamp(y, 0.0, 1.0)
 
+    # Normalize to [0, 1]
+    # y = (y - y.min()) / (y.max() - y.min())
+
     # Sparsen
     if pr_config['sparsen']:
       k_pr = int(pr_config['sparsity'] * pr_config['sparsity_boost'])
@@ -155,6 +156,7 @@ class AHA(MemoryInterface):
     # Sum norm (all input is positive)
     # We expect a lot of zeros, or near zeros, and a few larger values.
     if pr_config['sum_norm'] > 0.0:
+      logging.info('PR Sum-norm enabled')
       eps = 1e-13
       y_sum = torch.sum(y, dim=1, keepdim=True)
       reciprocal = 1.0 / y_sum + eps
@@ -165,21 +167,25 @@ class AHA(MemoryInterface):
       logging.info('PR Softmax enabled')
       y = F.softmax(y)
 
-    # After norm,
+    # After norm
     if pr_config['gain'] != 1.0:
       logging.info('PR Gain enabled')
       y = y * pr_config['gain']
 
-    # Range shift from unit to signed unit
     pr_out = y  # Unit range
+    z_cue_in = pr_out
 
-    z_cue_in = unit_to_pc_linear(y)  # Theoretical range limits -1 : 1
-    target_sparsity = pr_config['sparsity']
-    shift = get_pc_topk_shift(y, target_sparsity)
+    # Range shift from unit to signed unit
+    if pr_config['shift_range']:
+      z_cue_in = unit_to_pc_linear(pr_out)  # Theoretical range limits [-1, 1]
 
-    # shift until k bits are > 0, i.e.
-    # min *masked* value should become equal to zero.
-    z_cue_shift = z_cue_in + shift
+    z_cue_shift = z_cue_in
+
+    # Shift until k bits are > 0, i.e. min *masked* value should become equal to zero.
+    if pr_config['shift_bits']:
+      logging.info('PR Shift enabled')
+      shift = get_pc_topk_shift(pr_out, pr_config['sparsity'])
+      z_cue_shift = z_cue_in + shift
 
     outputs = {
         'pr_out': pr_out.detach(),
@@ -203,9 +209,17 @@ class AHA(MemoryInterface):
     During training, store the inputs from PS into the buffer. At test time, use the inputs from the PR to lookup the
     matching PS pattern from the buffer using K-nearest neighbour with K=1.
     """
+    pc_config = self.config['pc']
+
     if self.training:
+      # Range shift from unit to signed unit
+      if pc_config['shift_range']:
+        inputs = unit_to_pc_linear(inputs)
+
+      # Memorise inputs in buffer
       self.pc_buffer = inputs
-      return inputs
+
+      return self.pc_buffer
 
     recalled = torch.zeros_like(inputs)
 

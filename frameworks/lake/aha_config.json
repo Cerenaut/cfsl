@@ -4,16 +4,16 @@
   "image_shape": [1, 1, 52, 52],
   "image_resize_factor": 0.5,
 
-  "pretrain_epochs": 5,
-  "pretrain_batch_size": 64,
+  "pretrain_epochs": 15,
+  "pretrain_batch_size": 128,
 
-  "pretrained_model_path": "",
+  "pretrained_model_path": "runs/ltm_pretrain/pretrained_model_15.pt",
 
   "study_steps": 120,
   "study_batch_size": 20,
 
   "ltm": {
-    "learning_rate": 0.005,
+    "learning_rate": 0.001,
 
     "filters": 121,
     "kernel_size": 10,
@@ -55,7 +55,9 @@
         "num_units": 225,
         "sparsity": 10
     },
-    "pc": {},
+    "pc": {
+        "shift_range": false
+    },
     "pr": {
         "learning_rate": 0.01,
         "weight_decay": 0.000025,
@@ -79,6 +81,8 @@
         "sparsity_boost": 1.5,
         "sparsen": false,
         "softmax": false,
+        "shift_bits": true,
+        "shift_range": true,
         "sum_norm": 10.0,
         "gain": 1.0
     },

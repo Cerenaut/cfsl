@@ -71,7 +71,7 @@ def initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'):
 def get_initializer_by_name(init_type):
   # Handle custom initializers
   if init_type == 'truncated_normal_':
-    return truncated_normal_
+    return lambda x: truncated_normal_(x, mean=0.0, std=0.03)
 
   return getattr(torch.nn.init, init_type, None)
 
