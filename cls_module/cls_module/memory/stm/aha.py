@@ -102,6 +102,7 @@ class AHA(MemoryInterface):
     self.output_shape = pc_output_shape
 
   def build_ps(self, ps_config, ps_input_shape):
+    """Build the Pattern Separation (PS) module."""
     ps = DG(ps_input_shape, ps_config)
     ps_output_shape = [1, ps_config['num_units']]
 
@@ -113,6 +114,7 @@ class AHA(MemoryInterface):
     return self.ps(inputs)
 
   def build_pr(self, pr_config, pr_input_shape, pr_target_shape):
+    """Builds the Pattern Retrieval (PR) module."""
     pr = SimpleAutoencoder(pr_input_shape, pr_config, output_shape=pr_target_shape)
     pr_optimizer = optim.AdamW(pr.parameters(),
                                lr=pr_config['learning_rate'],
@@ -122,12 +124,15 @@ class AHA(MemoryInterface):
     self.add_optimizer('pr', pr_optimizer)
 
   def forward_pr(self, inputs, targets):
+    """Perform one step using the PR module to learn to replicate the patterns generated using the PS."""
     pr_config = self.config['pr']
 
     if self.pr.training:
       self.pr_optimizer.zero_grad()
 
-    encoding, logits = self.pr(inputs)
+    _, logits = self.pr(inputs)
+
+    targets = pc_to_unit(targets)  # This means unit range, sparse
     loss = F.binary_cross_entropy_with_logits(logits, targets)
 
     if self.pr.training:
@@ -150,8 +155,9 @@ class AHA(MemoryInterface):
     # Sum norm (all input is positive)
     # We expect a lot of zeros, or near zeros, and a few larger values.
     if pr_config['sum_norm'] > 0.0:
+      eps = 1e-13
       y_sum = torch.sum(y, dim=1, keepdim=True)
-      reciprocal = 1.0 / y_sum + 0.0000000000001
+      reciprocal = 1.0 / y_sum + eps
       y = y * reciprocal * pr_config['sum_norm']
 
     # Softmax norm
@@ -184,14 +190,19 @@ class AHA(MemoryInterface):
     return loss, outputs['z_cue']
 
   def build_pc(self, pc_config, pc_input_shape):
+    """Builds the Pattern Completion (PC) module."""
     del pc_config
-    pc = nn.PairwiseDistance(p=2)
-    self.add_module('pc', pc)
+
+    # Initialise the buffer
     self.pc_buffer = []
 
     return pc_input_shape
 
   def forward_pc(self, inputs):
+    """
+    During training, store the inputs from PS into the buffer. At test time, use the inputs from the PR to lookup the
+    matching PS pattern from the buffer using K-nearest neighbour with K=1.
+    """
     if self.training:
       self.pc_buffer = inputs
       return inputs
@@ -215,6 +226,9 @@ class AHA(MemoryInterface):
     self.add_optimizer('pm', pm_optimizer)
 
   def forward_pm(self, inputs, targets):
+    """
+    Perform one step using the PM module to learn to reconstruct input image using the patterns from the PC.
+    """
     if self.pm.training:
       self.pm_optimizer.zero_grad()
 
@@ -236,7 +250,7 @@ class AHA(MemoryInterface):
     return loss, outputs
 
   def forward_memory(self, inputs, targets, labels):
-    """Perform an optimization step using memory module."""
+    """Perform one step using the entire system (i.e. all sub-modules of AHA)."""
     del labels
 
     losses = {}
@@ -256,10 +270,11 @@ class AHA(MemoryInterface):
     outputs['output'] = outputs['pc'].detach()
 
     self.features = {
-        'ps': outputs['ps'],
-        'pc': outputs['pc'],
-        'pr': outputs['pr'],
-        'pm_decoding': outputs['pm']['decoding']
+        'ps': outputs['ps'].detach(),
+        'pr': outputs['pr'].detach(),
+        'pc': outputs['pc'].detach(),
+
+        'recon': outputs['pm']['decoding'].detach()
     }
 
     return losses, outputs

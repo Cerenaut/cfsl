@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 import numpy as np
 
-from cls_module.utils import activation_fn, initialize_parameters
+import cls_module.utils as utils
 
 class SimpleAutoencoder(nn.Module):
   """A simple encoder-decoder network."""
@@ -36,21 +36,48 @@ class SimpleAutoencoder(nn.Module):
     self.encoder = nn.Linear(self.input_size, self.config['num_units'], bias=self.config['use_bias'])
     self.decoder = nn.Linear(self.config['num_units'], self.output_size, bias=self.config['use_bias'])
 
-    self.encoder_nonlinearity = activation_fn(self.config['encoder_nonlinearity'])
-    self.decoder_nonlinearity = activation_fn(self.config['decoder_nonlinearity'])
+    self.encoder_nonlinearity = utils.activation_fn(self.config['encoder_nonlinearity'])
+    self.decoder_nonlinearity = utils.activation_fn(self.config['decoder_nonlinearity'])
 
     self.reset_parameters()
 
   def reset_parameters(self):
-    self.apply(lambda m: initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'))
+    self.apply(lambda m: utils.initialize_parameters(m, weight_init='xavier_normal_', bias_init='zeros_'))
+
+  def add_noise(self, inputs):
+    """Adds noise (salt, salt+pepper) to the inputs"""
+    noise_type = self.config.get('noise_type', None)
+
+    if self.training:
+      noise_val = self.config.get('train_with_noise', 0.0)
+      noise_factor = self.config.get('train_with_noise_pp', 0.0)
+    else:
+      noise_val = self.config.get('test_with_noise', 0.0)
+      noise_factor = self.config.get('test_with_noise_pp', 0.0)
+
+    if noise_type == 'g':  # gaussian noise
+      if not self.training:
+        return inputs
+
+      mean = 0.0
+      stdev = 0.5
+      return inputs + torch.randn(*inputs.shape) * stdev + mean
+
+    if noise_type == 's':  # salt noise
+      return utils.add_image_salt_noise_flat(inputs, noise_val=noise_val, noise_factor=noise_factor, mode='replace')
+
+    if noise_type == 'sp':  # salt + pepper noise
+      # Inspired by denoising AE.
+      # Add salt+pepper noise to mimic missing/extra bits in PC space.
+      # Use a fairly high rate of noising to mitigate few training iters.
+      return utils.add_image_salt_pepper_noise_flat(inputs,
+                                                    salt_val=noise_val,
+                                                    pepper_val=-noise_val,
+                                                    noise_factor=noise_factor)
+
+    return inputs
 
   def encode(self, inputs):
-    inputs = torch.flatten(inputs, start_dim=1)
-    inputs = (inputs - inputs.min()) / (inputs.max() - inputs.min())
-
-    if self.config['input_dropout'] > 0:
-      inputs = F.dropout(inputs, p=self.config['input_dropout'], training=self.training)
-
     encoding = self.encoder(inputs)
     encoding = self.encoder_nonlinearity(encoding)
 
@@ -68,6 +95,18 @@ class SimpleAutoencoder(nn.Module):
     return decoding
 
   def forward(self, x):  # pylint: disable=arguments-differ
+    x = torch.flatten(x, start_dim=1)
+
+    # Normalize the inputs
+    if self.config.get('norm_inputs'):
+      x = (x - x.min()) / (x.max() - x.min())
+
+    # Optionally add noise to the inputs
+    x = self.add_noise(x)
+
+    if self.config['input_dropout'] > 0:
+      x = F.dropout(x, p=self.config['input_dropout'], training=self.training)
+
     encoding = self.encode(x)
     decoding = self.decode(encoding)
 

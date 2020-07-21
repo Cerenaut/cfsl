@@ -1,5 +1,7 @@
 """VisualComponent class."""
 
+import copy
+
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -59,6 +61,11 @@ class VisualComponent(MemoryInterface):
         'decoding': decoding,
 
         'output': output_encoding  # Designated output for linked modules
+    }
+
+    self.features = {
+        'vc': output_encoding.detach(),
+        'recon': decoding.detach()
     }
 
     return loss, outputs

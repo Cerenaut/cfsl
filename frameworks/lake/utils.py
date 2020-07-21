@@ -1,6 +1,7 @@
 """lake/utils.py"""
 
 import os
+import math
 import random
 import datetime
 
@@ -201,7 +202,7 @@ def add_completion_summary(summary_images, folder, batch, save_figs=True, plot_e
 
   if len(summary_images) == 3:  #  3 images -> train_input, test_input, recon (i.e. no encoding)
     plot_encoding = False
-  print(len(summary_images))
+
   if save_figs:
     plt.switch_backend('agg')
 
@@ -276,7 +277,7 @@ def add_completion_summary(summary_images, folder, batch, save_figs=True, plot_e
       img_idx = col_idx - 1
       img = np.reshape(image[img_idx], image_shape)
 
-      if not plot_encoding or name in ['vc_input', 'ec_out_raw']:
+      if not plot_encoding or 'inputs' in name or 'recon' in name:
         ax.imshow(img, cmap='binary', vmin=0, vmax=1)
       else:
         ax.imshow(img, vmin=-1, vmax=1)
@@ -292,3 +293,24 @@ def add_completion_summary(summary_images, folder, batch, save_figs=True, plot_e
     plt.show()
 
 
+def square_image_shape_from_1d(filters):
+  """
+  Make 1d tensor as square as possible. If the length is a prime, the worst case, it will remain 1d.
+  Assumes and retains first dimension as batches.
+  """
+  height = int(math.sqrt(filters))
+
+  while height > 1:
+    width_remainder = filters % height
+    if width_remainder == 0:
+      break
+    else:
+      height = height - 1
+
+  width = filters // height
+  area = height * width
+  lost_pixels = filters - area
+
+  shape = [-1, height, width, 1]
+
+  return shape, lost_pixels

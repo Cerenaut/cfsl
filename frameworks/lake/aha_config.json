@@ -4,10 +4,10 @@
   "image_shape": [1, 1, 52, 52],
   "image_resize_factor": 0.5,
 
-  "pretrain_epochs": 1,
+  "pretrain_epochs": 5,
   "pretrain_batch_size": 64,
 
-  "pretrained_model_path": "runs/20200717-154242/pretrained_model_1.pt",
+  "pretrained_model_path": "",
 
   "study_steps": 120,
   "study_batch_size": 20,
@@ -66,18 +66,21 @@
 
         "encoder_nonlinearity": "leaky_relu",
         "decoder_nonlinearity": "none",
-        "use_bias": false,
+        "use_bias": true,
+        "norm_inputs": false,
 
+        "noise_type": "s",
         "train_with_noise": 0.05,
         "train_with_noise_pp": 0.005,
         "test_with_noise": 0.0,
         "test_with_noise_pp": 0.0,
+
         "sparsity": 10,
         "sparsity_boost": 1.5,
         "sparsen": false,
         "softmax": false,
-        "gain": 1.0,
-        "sum_norm": 10.0
+        "sum_norm": 10.0,
+        "gain": 1.0
     },
     "pm": {
         "learning_rate": 0.01,
@@ -88,8 +91,9 @@
         "hidden_dropout": 0.0,
 
         "encoder_nonlinearity": "leaky_relu",
-        "decoder_nonlinearity": "sigmoid",
-        "use_bias": true
+        "decoder_nonlinearity": "leaky_relu",
+        "use_bias": true,
+        "norm_inputs": true
     }
   }
 }

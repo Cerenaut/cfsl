@@ -73,7 +73,9 @@ class CLS(nn.Module):
 
     if 'stm' in names:
       self.stm.reset()
-      self.stm.classifier.reset()
+
+      if hasattr(self.stm, 'classifier'):
+        self.stm.classifier.reset()
 
   def freeze(self, names):
     """Selectively freeze sub-modules."""
@@ -185,11 +187,12 @@ class CLS(nn.Module):
 
       self.features[mode]['inputs'] = inputs
       self.features[mode]['labels'] = labels
-      self.features[mode][self.ltm_key + '_encoding'] = outputs[self.ltm_key]['memory']['encoding']
-      self.features[mode][self.ltm_key + '_decoding'] = outputs[self.ltm_key]['memory']['decoding']
-      self.features[mode][self.stm_key + '_encoding'] = outputs[self.stm_key]['memory']['encoding']
-      self.features[mode][self.stm_key + '_decoding'] = outputs[self.stm_key]['memory']['decoding']
-      self.features[mode].update(self.stm.features)
+
+      for key, value in self.stm.features.items():
+        self.features[mode][self.stm_key + '_' + key] = value
+
+      for key, value in self.ltm.features.items():
+        self.features[mode][self.ltm_key + '_' + key] = value
 
     # Add summaries to TensorBoard
     if self.writer:

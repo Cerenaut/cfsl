@@ -1,6 +1,7 @@
 """utils.py"""
 
 import os
+import math
 import random
 import datetime
 
@@ -133,3 +134,91 @@ def get_top_k(x, k, mask_type="pass_through", topk_dim=0, scatter_dim=0):
       raise Exception('Valid options: "pass_through", "hopfield" (-1, 1), or "binary" (0, 1)')
 
   return top_ks
+
+def add_image_noise_flat(image, label=None, minval=0., noise_type='sp_binary', noise_factor=0.2):
+  """If the image is flat (batch, size) then use this version. It reshapes and calls the add_imagie_noise()"""
+  image_shape = image.shape.as_list()
+  image = tf.reshape(image, (-1, image_shape[1], 1, 1))
+  image = add_image_noise(image, label, minval, noise_type, noise_factor)
+  image = tf.reshape(image, (-1, image_shape[1]))
+  return image
+
+
+def add_image_noise(image, label=None, minval=0., noise_type='sp_binary', noise_factor=0.2):
+  image_shape = image.shape.as_list()
+  image_size = np.prod(image_shape[1:])
+
+  if noise_type == 'sp_float' or noise_type == 'sp_binary':
+    noise_mask = np.zeros(image_size)
+    noise_mask[:int(noise_factor * image_size)] = 1
+    noise_mask = tf.convert_to_tensor(noise_mask, dtype=tf.float32)
+    noise_mask = tf.random_shuffle(noise_mask)
+    noise_mask = tf.reshape(noise_mask, [-1, image_shape[1], image_shape[2], image_shape[3]])
+
+    noise_image = tf.random_uniform(image_shape, minval, 1.0)
+    if noise_type == 'sp_binary':
+      noise_image = tf.sign(noise_image)
+    noise_image = tf.multiply(noise_image, noise_mask)  # retain noise in positions of noise mask
+
+    image = tf.multiply(image, (1 - noise_mask))  # zero out noise positions
+    corrupted_image = image + noise_image  # add in the noise
+  else:
+    if noise_type == 'none':
+      raise RuntimeWarning("Add noise has been called despite noise_type of 'none'.")
+    else:
+      raise NotImplementedError("The noise_type '{0}' is not supported.".format(noise_type))
+
+  if label is None:
+    return corrupted_image
+
+  return corrupted_image, label
+
+
+def add_image_salt_noise_flat(image, label=None, noise_val=0., noise_factor=0., mode='add'):
+  """If the image is flat (batch, size) then use this version. It reshapes and calls the add_image_noise()"""
+  image_shape = image.shape
+  image = torch.reshape(image, (-1, image_shape[1], 1, 1))
+  image = add_image_salt_noise(image, label, noise_val, noise_factor, mode)
+  image = torch.reshape(image, (-1, image_shape[1]))
+  return image
+
+def add_image_salt_pepper_noise_flat(image, label=None, salt_val=1., pepper_val=0., noise_factor=0.):
+  """If the image is flat (batch, size) then use this version. It reshapes and calls the add_image_noise()"""
+  image_shape = image.shape
+  image = torch.reshape(image, (-1, image_shape[1], 1, 1))
+  image = add_image_salt_noise(image, label, salt_val, noise_factor, 'replace')
+  image = add_image_salt_noise(image, label, pepper_val, noise_factor, 'replace')
+  image = torch.reshape(image, (-1, image_shape[1]))
+  return image
+
+def add_image_salt_noise(image, label=None, noise_val=0., noise_factor=0., mode='add'):
+  """ Add salt noise.
+
+  :param image:
+  :param label:
+  :param noise_val: value of 'salt' (can be +ve or -ve, must be non zero to have an effect)
+  :param noise_factor: the proportion of the image
+  :param mode: 'replace' = replace existing value, 'add' = noise adds to the existing value
+  :return:
+  """
+
+  image_shape = image.shape
+  image_size = np.prod(image_shape[1:])
+
+  # random shuffle of chosen number of active bits
+  noise_mask = np.zeros(image_size, dtype=np.float32)
+  noise_mask[:int(noise_factor * image_size)] = 1
+  np.random.shuffle(noise_mask)
+
+  noise_mask = np.reshape(noise_mask, [-1, image_shape[1], image_shape[2], image_shape[3]])
+  noise_mask = torch.from_numpy(noise_mask)
+
+  if mode == 'replace':
+    image = image * (1 - noise_mask)  # image: zero out noise positions
+
+  image = image + (noise_mask * noise_val)  # image: add in the noise at the chosen value
+
+  if label is None:
+    return image
+
+  return image, label

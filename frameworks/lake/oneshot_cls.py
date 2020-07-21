@@ -100,11 +100,15 @@ def main():
   model = CLS(image_shape, config, device=device, writer=writer).to(device)
 
   for idx, ((study_data, study_target), (recall_data, recall_target)) in oneshot_dataset:
+    if idx == 1:
+      break
+
     study_data, study_target = study_data.to(device), np.array(study_target)
     recall_data, recall_target = recall_data.to(device), np.array(recall_target)
 
     # Reset to saved model
     model.load_state_dict(torch.load(pretrained_model_path))
+    model.reset()
 
     # Study
     # --------------------------------------------------------------------------
@@ -125,19 +129,34 @@ def main():
                                              modes=['oneshot'])
       lake_oneshot_metrics.report(results)
 
-      summary_names = ['study_inputs', 'recall_inputs', 'recall_stm_decoding']
-      summary_images = []
+      summary_names = [
+          'study_inputs',
+          'study_ltm_vc',
+          'study_stm_ps',
+          'study_stm_pr',
 
+          'recall_inputs',
+          'recall_ltm_vc',
+          'recall_stm_pr',
+          'recall_stm_pc',
+          'recall_stm_recon'
+      ]
+
+      summary_images = []
       for name in summary_names:
         mode_key, feature_key = name.split('_', 1)
-        summary_features = model.features[mode_key][feature_key]
-        summary_features = summary_features.permute(0, 2, 3, 1)
 
-        summary_image = (name, summary_features, summary_features.data.shape)
+        summary_features = model.features[mode_key][feature_key]
+        if len(summary_features.shape) > 2:
+          summary_features = summary_features.permute(0, 2, 3, 1)
+
+        summary_shape, _ = utils.square_image_shape_from_1d(np.prod(summary_features.data.shape[1:]))
+        summary_shape[0] = summary_features.data.shape[0]
+
+        summary_image = (name, summary_features, summary_shape)
         summary_images.append(summary_image)
 
       utils.add_completion_summary(summary_images, summary_dir, idx, save_figs=True)
-    exit()
 
   lake_oneshot_metrics.report_averages()
 

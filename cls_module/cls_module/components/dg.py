@@ -41,23 +41,27 @@ class DG(nn.Module):
     initial_values = random_values * initial_mask * self.config['init_scale']
     initial_values = initial_values.float()
 
-    for i in range(0, hidden_size):
-      w_sum = 0.0
+    # offsets = torch.zeros(hidden_size, input_area, dtype=torch.long)
 
-      for j in range(0, input_area):
-        offset = j * hidden_size + i
-        w_ij = initial_values[offset]
-        w_sum = w_sum + abs(w_ij)
+    # for i in range(0, hidden_size):
+    #   for j in range(0, input_area):
+    #     offsets[i][j] = j * hidden_size + i
 
-      w_norm = 1.0 / w_sum
+    # for i in range(0, hidden_size):
+    #   offset = offsets[i]
+    #   w_sum = torch.sum(torch.abs(initial_values[offset]))
+    #   w_norm = 1.0 / w_sum
 
-      for j in range(0, input_area):
-        offset = j * hidden_size + i
-        w_ij = initial_values[offset]
-        w_ij = w_ij * w_norm
-        initial_values[offset] = w_ij
+    #   w_ij = initial_values[offset]
+    #   w_ij = w_ij * w_norm
+    #   initial_values[offset] = w_ij
 
-    self.layer.weight.data = torch.reshape(initial_values, shape=(hidden_size, input_area))
+    initial_values = torch.reshape(initial_values, shape=(hidden_size, input_area))
+    abs_sum = torch.sum(torch.abs(initial_values), dim=1, keepdim=True)
+    norm_factor = 1.0 / abs_sum
+    initial_values = initial_values * norm_factor
+
+    self.layer.weight.data = initial_values
 
   def apply_sparse_filter(self, encoding):
     """Sparse filtering with inhibition."""
