@@ -106,9 +106,6 @@ def main():
   model = CLS(image_shape, config, device=device, writer=writer).to(device)
 
   for idx, ((study_data, study_target), (recall_data, recall_target)) in oneshot_dataset:
-    if idx == 1:
-      break
-
     study_data = study_data.to(device)
     study_target = torch.from_numpy(np.array(study_target)).to(device)
     recall_data = recall_data.to(device)

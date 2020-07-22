@@ -33,8 +33,6 @@ class SimpleAutoencoder(nn.Module):
 
   def build(self):
     """Build the network architecture."""
-    self.input_norm = nn.BatchNorm1d(self.input_size)
-
     self.encoder = nn.Linear(self.input_size, self.config['num_units'], bias=self.config['use_bias'])
     self.decoder = nn.Linear(self.config['num_units'], self.output_size, bias=self.config['use_bias'])
 
@@ -57,14 +55,6 @@ class SimpleAutoencoder(nn.Module):
     else:
       noise_val = self.config.get('test_with_noise', 0.0)
       noise_factor = self.config.get('test_with_noise_pp', 0.0)
-
-    if noise_type == 'g':  # gaussian noise
-      if not self.training:
-        return inputs
-
-      mean = 0.0
-      stdev = 0.5
-      return inputs + torch.randn(*inputs.shape) * stdev + mean
 
     if noise_type == 's':  # salt noise
       return utils.add_image_salt_noise_flat(inputs, noise_val=noise_val, noise_factor=noise_factor, mode='replace')
@@ -102,8 +92,7 @@ class SimpleAutoencoder(nn.Module):
 
     # Normalize the inputs
     if self.config.get('norm_inputs'):
-      x = self.input_norm(x)
-      # x = (x - x.min()) / (x.max() - x.min())
+      x = (x - x.min()) / (x.max() - x.min())
 
     # Optionally add noise to the inputs
     x = self.add_noise(x)

@@ -91,7 +91,7 @@ class SparseAutoencoder(nn.Module):
     if not self.training:
       k = int(k * self.config['sparsity_output_factor'])
 
-    top_k_mask = utils.build_topk_mask(top_k_input, dim=-1, k=k)
+    top_k_mask = utils.build_topk_mask(top_k_input, dim=0, k=k)
 
     # Retrospectively add batch-sparsity per cell: pick the top-k (for now k=1 only).
     # ---------------------------------------------------------------------
