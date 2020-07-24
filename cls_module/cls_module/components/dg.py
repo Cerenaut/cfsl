@@ -24,42 +24,31 @@ class DG(nn.Module):
     self.layer = nn.Linear(self.input_size, self.config['num_units'], bias=False)
     self.layer.weight.requires_grad = False
 
-    self.initialize()
-    # nn.init.xavier_uniform_(self.layer.weight)
+    self.reset_parameters()
+    # nn.init.xavier_normal_(self.layer.weight)
 
-  def initialize(self):
+  def reset_parameters(self):
     """Custom initialization *does* make a big difference to orthogonality, even with inhibition"""
     input_area = self.input_size
     hidden_size = self.config['num_units']
 
     num_weights = hidden_size * input_area
-    random_values = torch.rand(num_weights)
+    random_values = torch.rand(num_weights, dtype=torch.float32)
 
     knockout_rate = self.config['knockout_rate']
     keep_rate = 1.0 - knockout_rate
-    initial_mask = np.random.choice([0, 1], size=(num_weights), p=[knockout_rate, keep_rate])
+
+    initial_mask = np.random.choice(np.array([0, 1], dtype=np.float32),
+                                    size=(num_weights),
+                                    p=[knockout_rate, keep_rate])
+
     initial_values = random_values * initial_mask * self.config['init_scale']
-    initial_values = initial_values.float()
-
-    # offsets = torch.zeros(hidden_size, input_area, dtype=torch.long)
-
-    # for i in range(0, hidden_size):
-    #   for j in range(0, input_area):
-    #     offsets[i][j] = j * hidden_size + i
-
-    # for i in range(0, hidden_size):
-    #   offset = offsets[i]
-    #   w_sum = torch.sum(torch.abs(initial_values[offset]))
-    #   w_norm = 1.0 / w_sum
-
-    #   w_ij = initial_values[offset]
-    #   w_ij = w_ij * w_norm
-    #   initial_values[offset] = w_ij
-
     initial_values = torch.reshape(initial_values, shape=(hidden_size, input_area))
+
     abs_sum = torch.sum(torch.abs(initial_values), dim=1, keepdim=True)
-    norm_factor = 1.0 / abs_sum
-    initial_values = initial_values * norm_factor
+    norm = 1.0 / abs_sum
+
+    initial_values = initial_values * norm
 
     self.layer.weight.data = initial_values
 
@@ -89,33 +78,81 @@ class DG(nn.Module):
       refraction_2d = refraction.unsqueeze(0)  # add batch dim
       refracted = torch.abs(encoding) * refraction_2d
 
-      # Find the "winners". The top k elements in each batch sample. this is
-      # what top_k does.
+      # Find the "winners". The top k elements in each batch sample
       # ---------------------------------------------------------------------
       top_k_mask = utils.build_topk_mask(refracted, dim=-1, k=k)
 
-      # Retrospectively add batch-sparsity per cell: pick the top-k (for now
-      # k=1 only). TODO make this allow top N per batch.
+      # Retrospectively add batch-sparsity per cell: pick the top-k
       # ---------------------------------------------------------------------
       batch_filtered = encoding * top_k_mask  # apply mask 3 to output 2
       this_batch_filtered = batch_filtered * this_batch_mask
-
       this_batch_topk = top_k_mask * this_batch_mask
       fired, _ = torch.max(this_batch_topk, dim=0)  # reduce over batch
+
       inhibition = inhibition * inhibition_decay + fired  # set to 1
 
       filtered = filtered + this_batch_filtered
 
     return filtered, inhibition
 
+  def stub(self, x):
+    """Returns a batch of non overlapping n-hot samples in range [0, 1]."""
+    batch_size = x.shape[0]
+    hidden_size = self.config['num_units']
+    n = self.config['sparsity']
+
+    assert ((batch_size * n - 1) + n) < hidden_size, "Can't produce batch_size {0} non-overlapping samples, " \
+           "reduce n {1} or increase sample_size {2}".format(batch_size, n, hidden_size)
+
+    batch = torch.zeros(batch_size, hidden_size)
+
+    # Return the sample at given index
+    for idx in range(batch_size):
+      start_idx = idx * n
+      end_idx = start_idx + n
+      batch[idx][start_idx:end_idx] = 1
+
+    return batch
+
+  def compute_overlap(self, encoding):
+    """ a, b = (0,1)
+    Overlap is where tensors have 1's in the same position.
+    Return number of bits that overlap """
+
+    num_samples = encoding.shape[0]
+    batch_overlap = torch.zeros(num_samples)
+
+    for i in range(num_samples):
+      a = encoding[i]
+
+      for j in range(num_samples):
+        # Avoid matching the same samples
+        if i == j:
+          continue
+
+        b = encoding[j]
+        overlap = torch.sum(a * b)
+        batch_overlap[i] += overlap
+
+    return batch_overlap
+
   def forward(self, inputs):  # pylint: disable=arguments-differ
     inputs = torch.flatten(inputs, start_dim=1)
 
-    with torch.no_grad():
-      encoding = self.layer(inputs)
-      filtered_encoding, _ = self.apply_sparse_filter(encoding)
+    if self.config['use_stub']:
+      top_k_mask = self.stub(inputs)
 
-    # Override encoding to become binary mask
-    top_k_mask = utils.build_topk_mask(filtered_encoding, dim=-1, k=self.config['sparsity'])
+    else:
+      with torch.no_grad():
+        encoding = self.layer(inputs)
+        filtered_encoding, _ = self.apply_sparse_filter(encoding)
+
+      # Override encoding to become binary mask
+      top_k_mask = utils.build_topk_mask(filtered_encoding, dim=-1, k=self.config['sparsity'])
+
+    overlap = self.compute_overlap(top_k_mask)
+    overlap_sum = overlap.sum().item()
+
+    assert overlap_sum == 0.0, 'Found overlap between samples in batch'
 
     return top_k_mask.detach()

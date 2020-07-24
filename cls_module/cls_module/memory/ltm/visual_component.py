@@ -2,6 +2,8 @@
 
 import copy
 
+import numpy as np
+
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -26,15 +28,16 @@ class VisualComponent(MemoryInterface):
 
     # Compute expected output shape
     with torch.no_grad():
+      stride = self.config.get('eval_stride', self.config.get('stride'))
       sample_input = torch.rand(1, *(self.input_shape[1:])).to(self.device)
-      sample_output = vc.encode(sample_input)
+      sample_output = vc.encode(sample_input, stride=stride)
       sample_output = self.prepare_encoding(sample_output)
 
       self.output_shape = list(sample_output.data.shape)
       self.output_shape[0] = -1
 
     if 'classifier' in self.config:
-      self.build_classifier(input_shape=self.config['output_shape'])
+      self.build_classifier(input_shape=self.output_shape)
 
   def forward_memory(self, inputs, targets, labels):
     """Perform an optimization step using the memory module."""
@@ -90,6 +93,7 @@ class VisualComponent(MemoryInterface):
                     dim=[1, 2, 3],
                     keepdim=True)
       )
+
       encoding = encoding / frobenius_norm
 
     return encoding

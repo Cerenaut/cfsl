@@ -8,6 +8,9 @@ import torch.nn.functional as F
 
 import torchvision
 
+import numpy as np
+
+from cls_module.utils import square_image_shape_from_1d
 from .memory import ltm, stm
 
 
@@ -55,7 +58,7 @@ class CLS(nn.Module):
     # stm_class = stm.FastNN
 
     stm_ = stm_class(config=stm_config,
-                     input_shape=ltm_config['output_shape'],
+                     input_shape=ltm_.output_shape,
                      target_shape=self.input_shape,
                      device=self.device,
                      writer=self.writer)
@@ -109,6 +112,14 @@ class CLS(nn.Module):
 
     super().load_state_dict(modified_state_dict, strict)
 
+    # Load pre-trained VC weights from TensorFlow implementation
+    vc_params = np.load('/Users/Abdel/Developer/code/ProjectAGI/code/cfsl/cls_module/vc_weights.npz')
+    vc_encoder_weight = torch.from_numpy(vc_params['weights']).permute(3, 2, 0, 1)
+    vc_encoder_bias = torch.from_numpy(vc_params['encoding_bias'])
+
+    self.ltm.vc.encoder.weight.data = vc_encoder_weight
+    self.ltm.vc.encoder.bias.data = vc_encoder_bias
+
   def pretrain(self, inputs, labels):
     return self.forward(inputs, labels, mode='pretrain')
 
@@ -155,17 +166,6 @@ class CLS(nn.Module):
 
     else:
       raise NotImplementedError('Mode not supported.')
-
-    # # DEBUG: Check training status
-    # if self.previous_mode != mode:
-    #   print('Previous Mode =', self.previous_mode)
-    #   print('Current Mode =', mode)
-
-    #   self.previous_mode = mode
-
-    #   for name, module in self.named_modules():
-    #     if module.training:
-    #       print(name, 'is training')
 
     losses[self.ltm_key], outputs[self.ltm_key] = self.ltm(inputs=inputs, targets=inputs, labels=labels)
     preds = outputs[self.ltm_key]['classifier']['predictions']
@@ -230,9 +230,17 @@ class CLS(nn.Module):
     for module_name in outputs:
       for submodule_name in outputs[module_name]:
         for metric_key, metric_value in outputs[module_name][submodule_name].items():
-          if metric_key not in ['decoding']:
-            continue
+          summary_image = None
 
-          writer.add_image(mode + '/' + module_name + '/' + submodule_name + '/' + metric_key,
-                           torchvision.utils.make_grid(metric_value),
-                           summary_step)
+          if metric_key == 'decoding':
+            summary_image = torchvision.utils.make_grid(metric_value, normalize=True, scale_each=True)
+
+          elif metric_key == 'encoding':
+            square_image_shape, _ = square_image_shape_from_1d(np.prod(metric_value.shape[1:]))
+            summary_image = torch.reshape(metric_value, [-1, 1, square_image_shape[1], square_image_shape[2]])
+            summary_image = summary_image[0]
+
+          if summary_image is not None:
+            writer.add_image(mode + '/' + module_name + '/' + submodule_name + '/' + metric_key,
+                             summary_image,
+                             summary_step)

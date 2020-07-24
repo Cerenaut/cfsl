@@ -224,3 +224,26 @@ def add_image_salt_noise(image, label=None, noise_val=0., noise_factor=0., mode=
     return image
 
   return image, label
+
+
+def square_image_shape_from_1d(filters):
+  """
+  Make 1d tensor as square as possible. If the length is a prime, the worst case, it will remain 1d.
+  Assumes and retains first dimension as batches.
+  """
+  height = int(math.sqrt(filters))
+
+  while height > 1:
+    width_remainder = filters % height
+    if width_remainder == 0:
+      break
+    else:
+      height = height - 1
+
+  width = filters // height
+  area = height * width
+  lost_pixels = filters - area
+
+  shape = [-1, height, width, 1]
+
+  return shape, lost_pixels

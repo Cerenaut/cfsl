@@ -68,7 +68,7 @@ class AHA(MemoryInterface):
 
   def reset(self):
     """Reset modules and optimizers."""
-    for name, module in self.named_modules():
+    for name, module in self.named_children():
       # Reset the module parameters
       if hasattr(module, 'reset_parameters'):
         module.reset_parameters()
@@ -272,10 +272,11 @@ class AHA(MemoryInterface):
 
     outputs['ps'] = self.forward_ps(inputs)
 
-    losses['pr'], outputs['pr'] = self.forward_pr(inputs=inputs, targets=outputs['ps'])
+    pr_targets = outputs['ps'] if self.training else self.pc_buffer
+    losses['pr'], outputs['pr'] = self.forward_pr(inputs=inputs, targets=pr_targets)
 
-    pc_input = outputs['ps'] if self.training else outputs['pr']
-    outputs['pc'] = self.forward_pc(inputs=pc_input)
+    pc_inputs = outputs['ps'] if self.training else outputs['pr']
+    outputs['pc'] = self.forward_pc(inputs=pc_inputs)
 
     losses['pm'], outputs['pm'] = self.forward_pm(inputs=outputs['pc'], targets=targets)
 
