@@ -68,7 +68,14 @@ class AHA(MemoryInterface):
 
   def reset(self):
     """Reset modules and optimizers."""
+    self.pc_buffer = []
+
     for name, module in self.named_children():
+      if name != 'pm':
+        continue
+
+      print('=> resetting', name)
+
       # Reset the module parameters
       if hasattr(module, 'reset_parameters'):
         module.reset_parameters()
@@ -78,8 +85,6 @@ class AHA(MemoryInterface):
       if hasattr(self, optimizer_name):
         module_optimizer = getattr(self, optimizer_name)
         module_optimizer.state = defaultdict(dict)
-
-    self.pc_buffer = []
 
   def build(self):
     """Build AHA as short-term memory module."""
@@ -144,7 +149,7 @@ class AHA(MemoryInterface):
     y = torch.clamp(y, 0.0, 1.0)
 
     # Normalize to [0, 1]
-    # y = (y - y.min()) / (y.max() - y.min())
+    y = (y - y.min()) / (y.max() - y.min())
 
     # Sparsen
     if pr_config['sparsen']:
@@ -172,7 +177,8 @@ class AHA(MemoryInterface):
       logging.info('PR Gain enabled')
       y = y * pr_config['gain']
 
-    pr_out = y  # Unit range
+    pr_out = y # Unit range
+
     z_cue_in = pr_out
 
     # Range shift from unit to signed unit
@@ -193,7 +199,7 @@ class AHA(MemoryInterface):
         'z_cue': z_cue_shift.detach()
     }
 
-    return loss, outputs['z_cue']
+    return loss, outputs
 
   def build_pc(self, pc_config, pc_input_shape):
     """Builds the Pattern Completion (PC) module."""
@@ -275,8 +281,8 @@ class AHA(MemoryInterface):
     pr_targets = outputs['ps'] if self.training else self.pc_buffer
     losses['pr'], outputs['pr'] = self.forward_pr(inputs=inputs, targets=pr_targets)
 
-    pc_inputs = outputs['ps'] if self.training else outputs['pr']
-    outputs['pc'] = self.forward_pc(inputs=pc_inputs)
+    pc_cue = outputs['ps'] if self.training else outputs['pr']['z_cue']
+    outputs['pc'] = self.forward_pc(inputs=pc_cue)
 
     losses['pm'], outputs['pm'] = self.forward_pm(inputs=outputs['pc'], targets=targets)
 
@@ -286,7 +292,7 @@ class AHA(MemoryInterface):
 
     self.features = {
         'ps': outputs['ps'].detach().cpu(),
-        'pr': outputs['pr'].detach().cpu(),
+        'pr': outputs['pr']['pr_out'].detach().cpu(),
         'pc': outputs['pc'].detach().cpu(),
 
         'recon': outputs['pm']['decoding'].detach().cpu()
