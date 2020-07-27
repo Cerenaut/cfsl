@@ -79,11 +79,11 @@
 
         "sparsity": 10,
         "sparsity_boost": 1.0,
-        "sparsen": true,
+        "sparsen": false,
         "softmax": false,
         "shift_bits": false,
         "shift_range": false,
-        "sum_norm": 10.0,
+        "sum_norm": 0.0,
         "gain": 1.0
     },
     "pm": {
