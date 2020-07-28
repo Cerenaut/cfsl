@@ -7,7 +7,7 @@
   "pretrain_epochs": 15,
   "pretrain_batch_size": 128,
 
-  "pretrained_model_path": "runs/20200722-124457/pretrained_model_15.pt",
+  "pretrained_model_path": "pretrained_model_15.pt",
 
   "study_steps": 120,
   "study_batch_size": 20,
@@ -79,11 +79,11 @@
 
         "sparsity": 10,
         "sparsity_boost": 1.0,
-        "sparsen": false,
+        "sparsen": true,
         "softmax": false,
         "shift_bits": false,
         "shift_range": false,
-        "sum_norm": 0.0,
+        "sum_norm": 10.0,
         "gain": 1.0
     },
     "pm": {

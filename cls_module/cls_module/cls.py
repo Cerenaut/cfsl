@@ -1,5 +1,6 @@
 """Complementary Learning System module."""
 
+import os
 import collections
 
 import torch
@@ -10,6 +11,7 @@ import torchvision
 
 import numpy as np
 
+import cls_module
 from cls_module.utils import square_image_shape_from_1d
 from .memory import ltm, stm
 
@@ -113,12 +115,15 @@ class CLS(nn.Module):
     super().load_state_dict(modified_state_dict, strict)
 
     # Load pre-trained VC weights from TensorFlow implementation
-    vc_params = np.load('/Users/Abdel/Developer/code/ProjectAGI/code/cfsl/cls_module/vc_weights.npz')
+    module_dirpath = os.path.dirname(cls_module.__file__)
+    weights_filepath = os.path.join(module_dirpath, '..', 'vc_weights.npz')
+
+    vc_params = np.load(weights_filepath)
     vc_encoder_weight = torch.from_numpy(vc_params['weights']).permute(3, 2, 0, 1)
     vc_encoder_bias = torch.from_numpy(vc_params['encoding_bias'])
 
-    self.ltm.vc.encoder.weight.data = vc_encoder_weight
-    self.ltm.vc.encoder.bias.data = vc_encoder_bias
+    self.ltm.vc.encoder.weight.data = vc_encoder_weight.to(self.device)
+    self.ltm.vc.encoder.bias.data = vc_encoder_bias.to(self.device)
 
   def pretrain(self, inputs, labels):
     return self.forward(inputs, labels, mode='pretrain')
