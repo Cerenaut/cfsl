@@ -7,6 +7,7 @@ import datetime
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -36,6 +37,8 @@ def build_topk_mask(x, dim=1, k=2):
   """
   Simple functional version of KWinnersMask/KWinners since
   autograd function apparently not currently exportable by JIT
+
+  Sourced from Jeremy's RSM code
   """
   res = torch.zeros_like(x)
   _, indices = torch.topk(x, k=k, dim=dim, sorted=False)
@@ -247,3 +250,90 @@ def square_image_shape_from_1d(filters):
   shape = [-1, height, width, 1]
 
   return shape, lost_pixels
+
+
+def get_padding(kernel_size, stride=1, dilation=1):
+  """Calculate symmetric padding for a convolution"""
+  padding = ((stride - 1) + dilation * (kernel_size - 1)) // 2
+  return padding
+
+
+def get_same_padding(x, k, s, d):
+  """Calculate asymmetric TensorFlow-like 'SAME' padding for a convolution"""
+  return max((math.ceil(x / s) - 1) * s + (k - 1) * d + 1 - x, 0)
+
+
+def is_static_pad(kernel_size, stride=1, dilation=11):
+  """Can SAME padding for given args be done statically?"""
+  return stride == 1 and (dilation * (kernel_size - 1)) % 2 == 0
+
+def pad_same(x, k, s, d=(1, 1), value=0):
+  """Dynamically pad input x with 'SAME' padding for conv with specified args"""
+  ih, iw = x.size()[-2:]
+  pad_h, pad_w = get_same_padding(ih, k[0], s[0], d[0]), get_same_padding(iw, k[1], s[1], d[1])
+  padding = [0, 0, 0, 0]
+  if pad_h > 0 or pad_w > 0:
+    padding = [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2]
+    x = F.pad(x, padding, value=value)
+  return x, padding
+
+
+def get_padding_value(padding, kernel_size):
+  """Get TF-compatible padding."""
+  dynamic = False
+  if isinstance(padding, str):
+    # for any string padding, the padding will be calculated for you, one of three ways
+    padding = padding.lower()
+    if padding == 'same':
+      # TF compatible 'SAME' padding, has a performance and GPU memory allocation impact
+      if is_static_pad(kernel_size):
+        # static case, no extra overhead
+        padding = get_padding(kernel_size)
+      else:
+        # dynamic 'SAME' padding, has runtime/GPU memory overhead
+        padding = 0
+        dynamic = True
+    elif padding == 'valid':
+      # 'VALID' padding, same as padding=0
+      padding = 0
+    else:
+      # Default to PyTorch style 'same'-ish symmetric padding
+      padding = get_padding(kernel_size)
+  return padding, dynamic
+
+
+def conv2d_same(x, weight, bias=None, stride=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1):
+  """Perform a Conv2D operation using SAME padding."""
+  stride = (stride, stride) if isinstance(stride, int) else stride
+
+  x, _ = pad_same(x, weight.shape[-2:], stride, dilation)
+  return F.conv2d(x, weight=weight, bias=bias, stride=stride, padding=padding, dilation=dilation,
+                  groups=groups)
+
+
+def conv_transpose2d_same(x, weight, bias=None, stride=(1, 1), padding=(0, 0), output_padding=(0, 0),
+                          dilation=(1, 1), groups=1):
+  """Perform a ConvTranspose2D operation using SAME padding."""
+  stride = (stride, stride) if isinstance(stride, int) else stride
+
+  padded_x, padding = pad_same(x, weight.shape[-2:], stride, dilation)
+
+  # Note: This is kind of hacky way to figure out the correct padding for the
+  # transpose operation, depending on the stride
+  if stride[0] == 1 and stride[1] == 1:
+    x = padded_x
+    padding = [padding[0] + padding[1], padding[2] + padding[3]]
+  else:
+    padding = [padding[0], padding[2]]
+
+  return F.conv_transpose2d(x, weight=weight, bias=bias, stride=stride, padding=padding, output_padding=output_padding,
+                            dilation=dilation, groups=groups)
+
+
+def max_pool2d_same(x, kernel_size, stride, padding=(0, 0), dilation=(1, 1), ceil_mode=False):
+  """Perform MaxPool2D operation using SAME padding."""
+  kernel_size = (kernel_size, kernel_size) if isinstance(kernel_size, int) else kernel_size
+  stride = (stride, stride) if isinstance(stride, int) else stride
+
+  x, _= pad_same(x, kernel_size, stride, value=-float('inf'))
+  return F.max_pool2d(x, kernel_size, stride, padding, dilation, ceil_mode)

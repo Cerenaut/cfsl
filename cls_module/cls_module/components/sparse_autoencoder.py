@@ -68,10 +68,14 @@ class SparseAutoencoder(nn.Module):
   def encode(self, inputs, stride=None):
     stride = stride if stride is not None else self.config['stride']
 
-    encoding = F.conv2d(inputs, self.encoder.weight,
-                        bias=self.encoder.bias,
-                        stride=stride,
-                        padding=self.config['padding'])
+    encoding = utils.conv2d_same(inputs, self.encoder.weight,
+                                 bias=self.encoder.bias,
+                                 stride=(stride, stride))
+
+    # encoding = F.conv2d(inputs, self.encoder.weight,
+    #                     bias=self.encoder.bias,
+    #                     stride=stride,
+    #                     padding=2)
 
     encoding = self.encoder_nonlinearity(encoding)
 
@@ -117,10 +121,14 @@ class SparseAutoencoder(nn.Module):
     if self.config['use_tied_weights']:
       decoder_weight = self.encoder.weight
 
-    decoding = F.conv_transpose2d(encoding, decoder_weight,
-                                  bias=self.decoder.bias,
-                                  stride=stride,
-                                  padding=self.config['padding'])
+    # decoding = F.conv_transpose2d(encoding, decoder_weight,
+    #                               bias=self.decoder.bias,
+    #                               stride=stride,
+    #                               padding=self.config['padding'])
+
+    decoding = utils.conv_transpose2d_same(encoding, decoder_weight,
+                                           bias=self.decoder.bias,
+                                           stride=stride)
 
     decoding = self.decoder_nonlinearity(decoding)
     decoding = torch.reshape(decoding, self.output_shape)
