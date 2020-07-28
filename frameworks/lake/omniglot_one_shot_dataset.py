@@ -13,6 +13,7 @@ from torchvision.datasets.utils import download_and_extract_archive, check_integ
 
 import numpy as np
 
+import imageio
 from scipy import ndimage
 
 
@@ -25,9 +26,6 @@ class OmniglotTransformation:
     self.resize_factor = resize_factor
 
   def __call__(self, x):
-    # Normalize to [0, 1]
-    x = (x - x.min()) / (x.max() - x.min())
-
     # Resize
     if self.resize_factor != 1.0:
       height = int(self.resize_factor * x.shape[1])
@@ -114,7 +112,11 @@ class OmniglotOneShotDataset(Dataset):
     label = self.labels[idx]
 
     image_path = self.filenames[idx]
-    image = Image.open(image_path, mode='r').convert('L')
+    image = imageio.imread(image_path)
+
+    # Convert to float values in [0, 1
+    image = image.astype(np.float32)
+    image = (image - image.min()) / (image.max() - image.min())
 
     if self.transform:
       image = self.transform(image)
