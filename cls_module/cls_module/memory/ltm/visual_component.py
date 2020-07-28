@@ -1,12 +1,10 @@
 """VisualComponent class."""
 
-import copy
-
-import numpy as np
-
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+
+from cls_module import utils
 
 from cls_module.memory.interface import MemoryInterface
 from cls_module.components.sparse_autoencoder import SparseAutoencoder
@@ -32,7 +30,6 @@ class VisualComponent(MemoryInterface):
       sample_input = torch.rand(1, *(self.input_shape[1:])).to(self.device)
       sample_output = vc.encode(sample_input, stride=stride)
       sample_output = self.prepare_encoding(sample_output)
-
       self.output_shape = list(sample_output.data.shape)
       self.output_shape[0] = -1
 
@@ -79,13 +76,17 @@ class VisualComponent(MemoryInterface):
     encoding = encoding.detach()
 
     if self.config['output_pool_size'] > 1:
-      pool_padding = (self.config['output_pool_size'] - 1) // 2
-
-      encoding = F.max_pool2d(
+      encoding = utils.max_pool2d_same(
           encoding,
           kernel_size=self.config['output_pool_size'],
-          stride=self.config['output_pool_stride'],
-          padding=pool_padding)
+          stride=self.config['output_pool_stride'])
+
+      # pool_padding = (self.config['output_pool_size'] - 1) // 2
+      # encoding = F.max_pool2d(
+      #     encoding,
+      #     kernel_size=self.config['output_pool_size'],
+      #     stride=self.config['output_pool_stride'],
+      #     padding=pool_padding)
 
     if self.config['output_norm_per_sample']:
       frobenius_norm = torch.sqrt(
