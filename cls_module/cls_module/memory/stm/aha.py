@@ -70,19 +70,36 @@ class AHA(MemoryInterface):
     """Reset modules and optimizers."""
     self.pc_buffer = []
 
+    # TF-AHA currently only resets PM optimizer, so avoid resetting the PR
+    # No point resetting the PS as it's not trainable anyway, keep it consistent between runs
+    resets = {
+        'pr': {
+            'params': True,
+            'optim': False,
+        },
+        'ps': {
+            'params': False,
+            'optim': False
+        },
+        'pm': {
+            'params': True,
+            'optim': True
+        }
+    }
+
     for name, module in self.named_children():
-      if name != 'pm':
+      if name not in resets.keys():
         continue
 
-      print('=> resetting', name)
-
       # Reset the module parameters
-      if hasattr(module, 'reset_parameters'):
+      if hasattr(module, 'reset_parameters') and resets[name]['params']:
+        print(name, '=>', 'resetting parameters')
         module.reset_parameters()
 
       # Reset the module optimizer
       optimizer_name = name + '_optimizer'
-      if hasattr(self, optimizer_name):
+      if hasattr(self, optimizer_name) and resets[name]['optim']:
+        print(name, '=>', 'resetting optimizer')
         module_optimizer = getattr(self, optimizer_name)
         module_optimizer.state = defaultdict(dict)
 
@@ -148,9 +165,6 @@ class AHA(MemoryInterface):
     # Clip
     y = torch.clamp(y, 0.0, 1.0)
 
-    # Normalize to [0, 1]
-    y = (y - y.min()) / (y.max() - y.min())
-
     # Sparsen
     if pr_config['sparsen']:
       k_pr = int(pr_config['sparsity'] * pr_config['sparsity_boost'])
@@ -177,7 +191,13 @@ class AHA(MemoryInterface):
       logging.info('PR Gain enabled')
       y = y * pr_config['gain']
 
-    pr_out = y # Unit range
+    # Normalize to [0, 1]
+    # This is not in TF-AHA, may comment it out. I added this because the range changes if you enable
+    # sum_norm for e.g.
+    y = (y - y.min()) / (y.max() - y.min())
+
+    # This output will get used for the matching accuracy, similar to TF-AHA
+    pr_out = y  # Unit range
 
     z_cue_in = pr_out
 
