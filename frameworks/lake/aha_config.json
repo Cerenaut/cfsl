@@ -9,7 +9,7 @@
 
   "pretrained_model_path": "pretrained_model_15.pt",
 
-  "study_steps": 120,
+  "study_steps": 60,
   "study_batch_size": 20,
 
   "ltm": {
@@ -79,7 +79,7 @@
 
         "sparsity": 10,
         "sparsity_boost": 1.0,
-        "sparsen": true,
+        "sparsen": false,
         "softmax": false,
         "shift_bits": false,
         "shift_range": false,
