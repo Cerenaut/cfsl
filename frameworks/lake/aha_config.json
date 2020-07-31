@@ -72,6 +72,7 @@
         "norm_inputs": false,
 
         "noise_type": "s",
+        "noise_mode": "add",
         "train_with_noise": 0.05,
         "train_with_noise_pp": 0.005,
         "test_with_noise": 0.0,

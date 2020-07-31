@@ -60,7 +60,7 @@ class LabelLearner(nn.Module):
     self.optimizer.state = defaultdict(dict)
 
   def reset_parameters(self):
-    self.apply(lambda m: initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'))
+    self.apply(lambda m: initialize_parameters(m, weight_init='xavier_truncated_normal_', bias_init='zeros_'))
 
   def forward(self, inputs, labels):  # pylint: disable=arguments-differ
     """Returns a batch of non overlapping n-hot samples in range [0,1]."""

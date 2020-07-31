@@ -43,11 +43,12 @@ class SimpleAutoencoder(nn.Module):
     self.reset_parameters()
 
   def reset_parameters(self):
-    self.apply(lambda m: utils.initialize_parameters(m, weight_init='xavier_normal_', bias_init='zeros_'))
+    self.apply(lambda m: utils.initialize_parameters(m, weight_init='xavier_truncated_normal_', bias_init='zeros_'))
 
   def add_noise(self, inputs):
     """Adds noise (salt, salt+pepper) to the inputs"""
     noise_type = self.config.get('noise_type', None)
+    noise_mode = self.config.get('noise_mode', 'add')
 
     if self.training:
       noise_val = self.config.get('train_with_noise', 0.0)
@@ -57,7 +58,7 @@ class SimpleAutoencoder(nn.Module):
       noise_factor = self.config.get('test_with_noise_pp', 0.0)
 
     if noise_type == 's':  # salt noise
-      return utils.add_image_salt_noise_flat(inputs, noise_val=noise_val, noise_factor=noise_factor, mode='replace')
+      return utils.add_image_salt_noise_flat(inputs, noise_val=noise_val, noise_factor=noise_factor, mode=noise_mode)
 
     if noise_type == 'sp':  # salt + pepper noise
       # Inspired by denoising AE.
