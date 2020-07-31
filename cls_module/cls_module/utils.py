@@ -55,6 +55,13 @@ def truncated_normal_(tensor, mean=0, std=1):
   return tensor
 
 
+def xavier_truncated_normal_(tensor, gain=1.0):
+  gain = 1.0
+  fan_in, fan_out = torch.nn.init._calculate_fan_in_and_fan_out(tensor)
+  std = gain * math.sqrt(2.0 / float(fan_in + fan_out))
+  return truncated_normal_(tensor, mean=0.0, std=std)
+
+
 def initialize_parameters(m, weight_init='xavier_uniform_', bias_init='zeros_'):
   """Initialize nn.Module parameters."""
   if not isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
@@ -75,6 +82,9 @@ def get_initializer_by_name(init_type):
   # Handle custom initializers
   if init_type == 'truncated_normal_':
     return lambda x: truncated_normal_(x, mean=0.0, std=0.03)
+
+  if init_type == 'xavier_truncated_normal_':
+    return lambda x: xavier_truncated_normal_(x)
 
   return getattr(torch.nn.init, init_type, None)
 
