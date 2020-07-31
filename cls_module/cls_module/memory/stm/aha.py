@@ -138,9 +138,9 @@ class AHA(MemoryInterface):
   def build_pr(self, pr_config, pr_input_shape, pr_target_shape):
     """Builds the Pattern Retrieval (PR) module."""
     pr = SimpleAutoencoder(pr_input_shape, pr_config, output_shape=pr_target_shape).to(self.device)
-    pr_optimizer = optim.AdamW(pr.parameters(),
-                               lr=pr_config['learning_rate'],
-                               weight_decay=pr_config['weight_decay'])
+    pr_optimizer = optim.Adam(pr.parameters(),
+                              lr=pr_config['learning_rate'],
+                              weight_decay=pr_config['weight_decay'])
 
     self.add_module('pr', pr)
     self.add_optimizer('pr', pr_optimizer)
@@ -192,9 +192,7 @@ class AHA(MemoryInterface):
       y = y * pr_config['gain']
 
     # Normalize to [0, 1]
-    # This is not in TF-AHA, may comment it out. I added this because the range changes if you enable
-    # sum_norm for e.g.
-    y = (y - y.min()) / (y.max() - y.min())
+    # y = (y - y.min()) / (y.max() - y.min())
 
     # This output will get used for the matching accuracy, similar to TF-AHA
     pr_out = y  # Unit range
@@ -258,9 +256,9 @@ class AHA(MemoryInterface):
 
   def build_pm(self, pm_config, pm_input_shape, pm_target_shape):
     pm = SimpleAutoencoder(pm_input_shape, pm_config, output_shape=pm_target_shape).to(self.device)
-    pm_optimizer = optim.AdamW(pm.parameters(),
-                               lr=pm_config['learning_rate'],
-                               weight_decay=pm_config['weight_decay'])
+    pm_optimizer = optim.Adam(pm.parameters(),
+                              lr=pm_config['learning_rate'],
+                              weight_decay=pm_config['weight_decay'])
 
     self.add_module('pm', pm)
     self.add_optimizer('pm', pm_optimizer)
