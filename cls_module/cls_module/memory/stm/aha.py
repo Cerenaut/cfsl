@@ -68,7 +68,7 @@ class AHA(MemoryInterface):
 
   def reset(self):
     """Reset modules and optimizers."""
-    self.pc_buffer = []
+    self.pc_buffer = None
 
     # TF-AHA currently only resets PM optimizer, so avoid resetting the PR
     # No point resetting the PS as it's not trainable anyway, keep it consistent between runs
@@ -93,13 +93,13 @@ class AHA(MemoryInterface):
 
       # Reset the module parameters
       if hasattr(module, 'reset_parameters') and resets[name]['params']:
-        print(name, '=>', 'resetting parameters')
+        # print(name, '=>', 'resetting parameters')
         module.reset_parameters()
 
       # Reset the module optimizer
       optimizer_name = name + '_optimizer'
       if hasattr(self, optimizer_name) and resets[name]['optim']:
-        print(name, '=>', 'resetting optimizer')
+        # print(name, '=>', 'resetting optimizer')
         module_optimizer = getattr(self, optimizer_name)
         module_optimizer.state = defaultdict(dict)
 
@@ -224,7 +224,7 @@ class AHA(MemoryInterface):
     del pc_config
 
     # Initialise the buffer
-    self.pc_buffer = []
+    self.pc_buffer = None
 
     return pc_input_shape
 
@@ -242,6 +242,11 @@ class AHA(MemoryInterface):
 
       # Memorise inputs in buffer
       self.pc_buffer = inputs
+
+      # if self.pc_buffer is None:
+      #   self.pc_buffer = inputs
+      # else:
+      #   self.pc_buffer = torch.cat((self.pc_buffer, inputs))
 
       return self.pc_buffer
 

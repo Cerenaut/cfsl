@@ -322,7 +322,7 @@ def conv2d_same(x, weight, bias=None, stride=(1, 1), padding=(0, 0), dilation=(1
 
 
 def conv_transpose2d_same(x, weight, bias=None, stride=(1, 1), padding=(0, 0), output_padding=(0, 0),
-                          dilation=(1, 1), groups=1):
+                          dilation=(1, 1), groups=1, output_shape=None):
   """Perform a ConvTranspose2D operation using SAME padding."""
   stride = (stride, stride) if isinstance(stride, int) else stride
 
@@ -335,6 +335,16 @@ def conv_transpose2d_same(x, weight, bias=None, stride=(1, 1), padding=(0, 0), o
     padding = [padding[0] + padding[1], padding[2] + padding[3]]
   else:
     padding = [padding[0], padding[2]]
+
+  if output_shape is not None:
+    out_h = output_shape[2]
+    out_w = output_shape[3]
+
+    # Compute output shape
+    h = (x.shape[2] - 1) * stride[0] + weight.shape[2] - 2 * padding[0]
+    w = (x.shape[3] - 1) * stride[1] + weight.shape[3] - 2 * padding[1]
+
+    output_padding = (out_h - h, out_w - w)
 
   return F.conv_transpose2d(x, weight=weight, bias=bias, stride=stride, padding=padding, output_padding=output_padding,
                             dilation=dilation, groups=groups)

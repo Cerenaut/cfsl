@@ -55,13 +55,13 @@ class SparseAutoencoder(nn.Module):
                              kernel_size=self.config['kernel_size'],
                              stride=self.config['stride'],
                              bias=self.config['use_bias'],
-                             padding=self.config['padding'])
+                             padding=self.config['encoder_padding'])
 
     self.decoder = nn.ConvTranspose2d(self.config['filters'], self.input_shape[1],
                                       kernel_size=self.config['kernel_size'],
                                       stride=self.config['stride'],
                                       bias=self.config['use_bias'],
-                                      padding=self.config['padding'])
+                                      padding=self.config['decoder_padding'])
 
     self.reset_parameters()
 
@@ -75,7 +75,7 @@ class SparseAutoencoder(nn.Module):
     # encoding = F.conv2d(inputs, self.encoder.weight,
     #                     bias=self.encoder.bias,
     #                     stride=stride,
-    #                     padding=2)
+    #                     padding=self.config['encoder_padding'])
 
     encoding = self.encoder_nonlinearity(encoding)
 
@@ -124,11 +124,12 @@ class SparseAutoencoder(nn.Module):
     # decoding = F.conv_transpose2d(encoding, decoder_weight,
     #                               bias=self.decoder.bias,
     #                               stride=stride,
-    #                               padding=self.config['padding'])
+    #                               padding=self.config['decoder_padding'])
 
     decoding = utils.conv_transpose2d_same(encoding, decoder_weight,
                                            bias=self.decoder.bias,
-                                           stride=stride)
+                                           stride=stride,
+                                           output_shape=self.output_shape)
 
     decoding = self.decoder_nonlinearity(decoding)
     decoding = torch.reshape(decoding, self.output_shape)
