@@ -264,7 +264,7 @@ class ExperimentBuilder(object):
         return start_time, state
 
     def evaluate_test_set_using_the_best_models(self, top_n_models):
-        if 'per_epoch_statistics' in self.state:
+        if 'per_epoch_statistics' in self.state and 'val_accuracy_mean' in self.state['per_epoch_statistics']:
             per_epoch_statistics = self.state['per_epoch_statistics']
             val_acc = np.copy(per_epoch_statistics['val_accuracy_mean'])
             val_idx = np.array([i for i in range(len(val_acc))])
@@ -350,7 +350,7 @@ class ExperimentBuilder(object):
                         current_iter=self.state['current_iter'],
                         sample_idx=self.state['current_iter'])
 
-                    validate = False
+                    validate = True
                     better_val_model = False
                     if self.state['current_iter'] % self.total_iter_per_epoch == 0:
 

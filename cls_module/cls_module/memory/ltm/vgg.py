@@ -30,7 +30,7 @@ class VGG(MemoryInterface):
                                      num_support_set_steps=2 * self.num_support_sets * self.num_support_set_steps,
                                      num_target_set_steps=self.num_target_set_steps + 1).to(self.device)
 
-    model_optimizer = optim.Adam(model.parameters(), lr=self.config['learning_rate'])
+    model_optimizer = optim.Adam(model.parameters(), lr=self.config['meta_learning_rate'])
 
     self.add_module(self.local_key, model)
     self.add_optimizer(self.local_key, model_optimizer)

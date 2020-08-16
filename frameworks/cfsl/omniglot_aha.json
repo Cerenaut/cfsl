@@ -1,0 +1,154 @@
+{
+  "batch_size": 1,
+  "image_height": 28,
+  "image_width": 28,
+  "image_channels": 1,
+  "gpu_to_use": 0,
+  "num_dataprovider_workers": 8,
+  "max_models_to_save": 5,
+  "dataset_name": "omniglot_dataset",
+  "reset_stored_paths": false,
+  "experiment_name": "omniglot_cls",
+  "train_seed": 0, "val_seed": 0,
+  "indexes_of_folders_indicating_class": [-3, -2],
+  "sets_are_pre_split": false,
+  "train_val_test_split": [0.73982737361, 0.13008631319, 0.13008631319],
+  "load_into_memory": false,
+  "classifier_type": "cls",
+
+  "total_epochs": 10,
+  "total_iter_per_epoch": 500, "continue_from_epoch": "latest",
+  "evaluate_on_test_set_only": false,
+  "num_evaluation_tasks": 60,
+  "num_support_set_steps": 5,
+  "num_target_set_steps": 0,
+
+  "number_of_training_steps_per_iter": 5,
+  "number_of_evaluation_steps_per_iter": 0,
+  "num_classes_per_set": 5,
+  "num_samples_per_support_class": 1,
+  "num_samples_per_target_class": 5,
+  "num_support_sets": 4,
+  "class_change_interval": 2,
+  "overwrite_classes_in_each_task": false,
+
+  "cls_config": {
+    "pretrain_epochs": 5,
+    "pretrain_batch_size": 64,
+
+    "study_steps": 60,
+    "study_batch_size": 20,
+
+    "consolidation_steps": 120,
+
+    "ltm-vc": {
+      "learning_rate": 0.001,
+
+      "filters": 121,
+      "kernel_size": 10,
+      "stride": 5,
+      "eval_stride": 1,
+      "encoder_padding": 0,
+      "decoder_padding": 0,
+  
+      "encoder_nonlinearity": "none",
+      "decoder_nonlinearity": "sigmoid",
+
+      "use_bias": true,
+      "use_tied_weights": true,
+      "use_lifetime_sparsity": true,
+
+      "sparsity": 1,
+      "sparsity_output_factor": 4.0,
+
+      "output_pool_size": 4,
+      "output_pool_stride": 4,
+      "output_norm_per_sample": true,
+
+      "classifier": {
+        "learning_rate": 0.001,
+        "weight_decay": 0.000025,
+
+        "input_dropout": 0.0,
+        "hidden_dropout": [],
+
+        "hidden_units": [],
+        "output_units": null
+      }
+    },
+    "ltm": {
+      "min_learning_rate": 0.001,
+      "meta_learning_rate": 0.001,
+
+      "classifier": {
+        "output_units": null
+      }
+    },
+    "stm": {
+      "ps": {
+          "inhibition_decay": 0.95,
+          "knockout_rate": 0.25,
+          "init_scale": 10.0,
+          "num_units": 225,
+          "sparsity": 10,
+          "use_stub": false
+      },
+      "pc": {
+          "shift_range": false
+      },
+      "pr": {
+          "learning_rate": 0.01,
+          "weight_decay": 0.000025,
+  
+          "num_units": 800,
+          "input_dropout": 0.25,
+          "hidden_dropout": 0.0,
+  
+          "encoder_nonlinearity": "leaky_relu",
+          "decoder_nonlinearity": "none",
+          "use_bias": true,
+          "norm_inputs": false,
+  
+          "noise_type": "s",
+          "noise_mode": "add",
+          "train_with_noise": 0.05,
+          "train_with_noise_pp": 0.005,
+          "test_with_noise": 0.0,
+          "test_with_noise_pp": 0.0,
+  
+          "sparsity": 10,
+          "sparsity_boost": 1.0,
+          "sparsen": false,
+          "softmax": false,
+          "shift_bits": false,
+          "shift_range": false,
+          "sum_norm": 10.0,
+          "gain": 1.0
+      },
+      "pm": {
+          "learning_rate": 0.01,
+          "weight_decay": 0.00004,
+  
+          "num_units": 100,
+          "input_dropout": 0.0,
+          "hidden_dropout": 0.0,
+  
+          "encoder_nonlinearity": "leaky_relu",
+          "decoder_nonlinearity": "leaky_relu",
+          "use_bias": true,
+          "norm_inputs": true
+      },
+
+      "classifier": {
+        "learning_rate": 0.01,
+        "weight_decay": 0.000025,
+
+        "input_dropout": 0.0,
+        "hidden_dropout": [],
+
+        "hidden_units": [800],
+        "output_units": null
+      }
+    }
+  }
+}
