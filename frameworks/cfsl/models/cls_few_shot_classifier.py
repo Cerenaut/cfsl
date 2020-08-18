@@ -60,8 +60,6 @@ class CLSFewShotClassifier(nn.Module):
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
 
     self.ltm_state_dict = None
-    self.ltm_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=self.model.ltm.vgg_optimizer, T_max=self.total_epochs,
-                                                              eta_min=self.cls_config['ltm']['min_learning_rate'])
 
     # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
@@ -136,7 +134,8 @@ class CLSFewShotClassifier(nn.Module):
     x_support_set, x_target_set, y_support_set, y_target_set, *_ = data_batch
 
     num_study_steps = self.cls_config['study_steps']
-    num_consolidation_steps = self.cls_config['consolidation_steps']
+    # num_consolidation_steps = self.cls_config['consolidation_steps']
+    num_consolidation_steps = self.num_support_set_steps
     replay_method = 'recall'  # recall, or groundtruth
     replay_interleave = True
     replay_num_samples = 5
@@ -152,7 +151,6 @@ class CLSFewShotClassifier(nn.Module):
             enumerate(zip(x_support_set, y_support_set, x_target_set, y_target_set)):
 
       self.model.reset(['stm'])
-      self.model.ltm.load_state_dict(self.ltm_state_dict)  # Special reset for LTM-VGG
 
       c, h, w = x_target_set_task.shape[-3:]
       x_target_set_task = x_target_set_task.view(-1, c, h, w).to(self.device)
@@ -318,19 +316,6 @@ class CLSFewShotClassifier(nn.Module):
         if param.requires_grad:
           yield name, param
 
-  def train_forward_prop(self, data_batch, epoch, current_iter):
-    """
-    Runs an outer loop forward prop using the meta-model and base-model.
-    :param data_batch: A data batch containing the support set and the target set input, output pairs.
-    :param epoch: The index of the currrent epoch.
-    :return: A dictionary of losses for the current step.
-    """
-    del epoch, current_iter
-
-    losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=True)
-
-    return losses, per_task_preds
-
   def evaluation_forward_prop(self, data_batch, epoch):
     """
     Runs an outer loop evaluation forward prop using the meta-model and base-model.
@@ -340,9 +325,16 @@ class CLSFewShotClassifier(nn.Module):
     """
     del epoch
 
+    self.reset_ltm()
+
     losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=False)
 
+    self.reset_ltm()
+
     return losses, per_task_preds
+
+  def reset_ltm(self):
+    self.model.ltm.load_state_dict(self.ltm_state_dict)
 
   def run_train_iter(self, data_batch, epoch, current_iter):
     """
@@ -352,7 +344,6 @@ class CLSFewShotClassifier(nn.Module):
     :return: The losses of the ran iteration.
     """
     epoch = int(epoch)
-    self.scheduler.step(epoch=epoch)
 
     if self.current_epoch != epoch:
       self.current_epoch = epoch
@@ -376,7 +367,6 @@ class CLSFewShotClassifier(nn.Module):
     losses = dict()
     losses['loss'] = model_losses['ltm']['memory']['loss']
     losses['accuracy'] = accuracy
-    losses['learning_rate'] = self.scheduler.get_lr()[0]
 
     self.current_iter += 1
 
@@ -437,6 +427,7 @@ class CLSFewShotClassifier(nn.Module):
     return state
 
   def get_across_task_loss_metrics(self, total_losses, total_accuracies, loss_metrics_dict):
+    """Compute average metrics (e.g. loss, accuracy, etc.) across tasks."""
     losses = dict()
 
     losses['loss'] = torch.mean(torch.stack(total_losses), dim=(0,))

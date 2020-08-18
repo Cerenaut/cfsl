@@ -8,7 +8,7 @@
   "max_models_to_save": 5,
   "dataset_name": "omniglot_dataset",
   "reset_stored_paths": false,
-  "experiment_name": "omniglot_cls",
+  "experiment_name": "omniglot_aha",
   "train_seed": 0, "val_seed": 0,
   "indexes_of_folders_indicating_class": [-3, -2],
   "sets_are_pre_split": false,
@@ -19,8 +19,8 @@
   "total_epochs": 10,
   "total_iter_per_epoch": 500, "continue_from_epoch": "latest",
   "evaluate_on_test_set_only": false,
-  "num_evaluation_tasks": 60,
-  "num_support_set_steps": 5,
+  "num_evaluation_tasks": 600,
+  "num_support_set_steps": 120,
   "num_target_set_steps": 0,
 
   "number_of_training_steps_per_iter": 5,
@@ -33,13 +33,7 @@
   "overwrite_classes_in_each_task": false,
 
   "cls_config": {
-    "pretrain_epochs": 5,
-    "pretrain_batch_size": 64,
-
     "study_steps": 60,
-    "study_batch_size": 20,
-
-    "consolidation_steps": 120,
 
     "ltm-vc": {
       "learning_rate": 0.001,
@@ -77,8 +71,13 @@
       }
     },
     "ltm": {
-      "min_learning_rate": 0.001,
-      "meta_learning_rate": 0.001,
+      "learning_rate": 0.001,
+
+      "weight_decay": 0.0001,
+
+      "num_stages": 4,
+      "num_filters": 48,
+      "use_channel_wise_attention": true,
 
       "classifier": {
         "output_units": null

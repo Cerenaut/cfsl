@@ -19,18 +19,21 @@ class VGG(MemoryInterface):
     """Build Visual Component as long-term memory module."""
     self.predictor_idx = 0
 
-    self.num_support_sets = 4
-    self.num_support_set_steps = 5
-    self.num_target_set_steps = 1
+    num_support_sets = 4
+    num_support_set_steps = 5
+    num_target_set_steps = 1
 
     model = VGGActivationNormNetwork(input_shape=self.input_shape,
                                      num_output_classes=self.config['classifier']['output_units'],
-                                     num_stages=4, use_channel_wise_attention=True,
-                                     num_filters=48,
-                                     num_support_set_steps=2 * self.num_support_sets * self.num_support_set_steps,
-                                     num_target_set_steps=self.num_target_set_steps + 1).to(self.device)
+                                     num_stages=self.config['num_stages'],
+                                     use_channel_wise_attention=self.config['use_channel_wise_attention'],
+                                     num_filters=self.config['num_filters'],
+                                     num_support_set_steps=2 * num_support_sets * num_support_set_steps,
+                                     num_target_set_steps=num_target_set_steps + 1).to(self.device)
 
-    model_optimizer = optim.Adam(model.parameters(), lr=self.config['meta_learning_rate'])
+    model_optimizer = optim.Adam(model.parameters(),
+                                 lr=self.config['learning_rate'],
+                                 weight_decay=self.config['weight_decay'])
 
     self.add_module(self.local_key, model)
     self.add_optimizer(self.local_key, model_optimizer)
@@ -49,13 +52,14 @@ class VGG(MemoryInterface):
         'optimizer_state_dict': self.vgg_optimizer.state_dict(),
     }
 
-  def load_state_dict(self, state_dict):
+  def load_state_dict(self, state_dict):  # pylint: disable=arguments-differ
     if state_dict is None:
       state_dict = self.get_state_dict()
     self.vgg.load_state_dict(state_dict['model_state_dict'])
     self.vgg_optimizer.load_state_dict(state_dict['optimizer_state_dict'])
 
   def update_predictor(self, idx):
+    """Select the predictor head, and adjust its trainability."""
     predictor_name = 'layer_dict.linear_'
 
     prev_predictor = predictor_name + str(self.predictor_idx)
@@ -77,7 +81,7 @@ class VGG(MemoryInterface):
     if self.vgg.training:
       self.vgg_optimizer.zero_grad()
 
-    preds, encoding = self.vgg.forward(x=inputs, num_step=0, return_features=True)
+    preds, encoding = self.vgg.forward(x=inputs, num_step=0, training=self.training, return_features=True)
 
     loss = F.cross_entropy(input=preds[self.predictor_idx], target=labels)
 
