@@ -55,6 +55,7 @@ class CLSFewShotClassifier(nn.Module):
 
     self.writer = SummaryWriter()
     self.current_iter = 0
+    self.current_eval_iter = 0
 
     # Build the CLS module
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
@@ -134,11 +135,11 @@ class CLSFewShotClassifier(nn.Module):
     x_support_set, x_target_set, y_support_set, y_target_set, *_ = data_batch
 
     num_study_steps = self.cls_config['study_steps']
-    # num_consolidation_steps = self.cls_config['consolidation_steps']
     num_consolidation_steps = self.num_support_set_steps
     replay_method = 'recall'  # recall, or groundtruth
-    replay_interleave = True
+    replay_interleave = False
     replay_num_samples = 5
+    reset_stm_per_run = False
 
     per_task_preds = []
 
@@ -150,6 +151,7 @@ class CLSFewShotClassifier(nn.Module):
     for _, (x_support_set_task, y_support_set_task, x_target_set_task, y_target_set_task) in \
             enumerate(zip(x_support_set, y_support_set, x_target_set, y_target_set)):
 
+      # Reset STM at the start of the task
       self.model.reset(['stm'])
 
       c, h, w = x_target_set_task.shape[-3:]
@@ -166,8 +168,9 @@ class CLSFewShotClassifier(nn.Module):
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
             enumerate(zip(x_support_set_task, y_support_set_task)):
 
-        # TODO: Continous STM without forgetting
-        self.model.reset(['stm'])
+        # Optional: Reset STM every support set
+        if reset_stm_per_run:
+          self.model.reset(['stm'])
 
         # in the future try to adapt the features using a relational component
         x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
@@ -183,7 +186,12 @@ class CLSFewShotClassifier(nn.Module):
           stm_support_input = pre_ltm_support_outputs['memory']['output'].detach()
 
         self.model.stm.train()
-        for _ in range(num_study_steps):
+        for step in range(num_study_steps):
+          self.model.stm.set_pc_buffer_mode('none')
+
+          if step == 0:
+            self.model.stm.set_pc_buffer_mode('append')
+
           self.model.stm(inputs=stm_support_input, targets=x_support_set_sub_task, labels=y_support_set_sub_task)
           step_idx += 1
 
@@ -225,17 +233,26 @@ class CLSFewShotClassifier(nn.Module):
         _, post_ltm_support_outputs = self.model.ltm(inputs=x_support_set_task,
                                                      targets=None,
                                                      labels=y_support_set_task)
-        step_idx += 1
+
+        support_ltm_encodings = post_ltm_support_outputs['memory']['output']
+
+        _, stm_support_outputs = self.model.stm(inputs=support_ltm_encodings,
+                                                targets=x_support_set_task,
+                                                labels=y_support_set_task)
 
         target_losses, target_outputs = self.model.ltm(inputs=x_target_set_task,
                                                        targets=None,
                                                        labels=y_target_set_task)
-        step_idx += 1
+
+        target_ltm_encodings = target_outputs['memory']['output']
+
+        _, stm_target_outputs = self.model.stm(inputs=target_ltm_encodings,
+                                               targets=x_target_set_task,
+                                               labels=y_target_set_task)
 
       # Compute Matching Accuracy
       # ---------------------------------------------------------------------------------------------------------------
       per_class_embeddings = []
-      support_ltm_encodings = post_ltm_support_outputs['memory']['output']
 
       for i in range(self.output_units):
         temp_class_encodings = torch.zeros((self.num_samples_per_support_class * self.num_classes_per_set,
@@ -253,7 +270,6 @@ class CLSFewShotClassifier(nn.Module):
                                                        per_class_embeddings.shape[0],
                                                        np.prod(per_class_embeddings.shape[1:]))
 
-      target_ltm_encodings = target_outputs['memory']['output']
       target_ltm_encodings = target_ltm_encodings.view(self.batch_size,
                                                        target_ltm_encodings.shape[0],
                                                        np.prod(target_ltm_encodings.shape[1:]))
@@ -295,6 +311,8 @@ class CLSFewShotClassifier(nn.Module):
     losses = self.get_across_task_loss_metrics(total_losses=per_task_target_ltm_loss,
                                                total_accuracies=per_task_target_ltm_accuracy,
                                                loss_metrics_dict=loss_metric_dict)
+
+    self.current_eval_iter += 1
 
     return losses, per_task_preds
 

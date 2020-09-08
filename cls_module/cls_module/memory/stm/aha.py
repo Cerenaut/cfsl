@@ -69,6 +69,8 @@ class AHA(MemoryInterface):
   def reset(self):
     """Reset modules and optimizers."""
     self.pc_buffer = None
+    self.pc_buffer_batch = None
+    self.pc_buffer_mode = 'override'
 
     # TF-AHA currently only resets PM optimizer, so avoid resetting the PR
     # No point resetting the PS as it's not trainable anyway, keep it consistent between runs
@@ -228,6 +230,9 @@ class AHA(MemoryInterface):
 
     return pc_input_shape
 
+  def set_pc_buffer_mode(self, mode='override'):
+    self.pc_buffer_mode = mode
+
   def forward_pc(self, inputs):
     """
     During training, store the inputs from PS into the buffer. At test time, use the inputs from the PR to lookup the
@@ -240,15 +245,15 @@ class AHA(MemoryInterface):
       if pc_config['shift_range']:
         inputs = dg_to_pc(inputs)
 
+      self.pc_buffer_batch = inputs
+
       # Memorise inputs in buffer
-      self.pc_buffer = inputs
+      if self.pc_buffer is None or self.pc_buffer_mode == 'override':
+        self.pc_buffer = inputs
+      elif self.pc_buffer_mode == 'append':
+        self.pc_buffer = torch.cat((self.pc_buffer, inputs))
 
-      # if self.pc_buffer is None:
-      #   self.pc_buffer = inputs
-      # else:
-      #   self.pc_buffer = torch.cat((self.pc_buffer, inputs))
-
-      return self.pc_buffer
+      return self.pc_buffer_batch
 
     recalled = torch.zeros_like(inputs)
 
@@ -301,7 +306,7 @@ class AHA(MemoryInterface):
 
     outputs['ps'] = self.forward_ps(inputs)
 
-    pr_targets = outputs['ps'] if self.training else self.pc_buffer
+    pr_targets = outputs['ps'] if self.training else self.pc_buffer_batch
     losses['pr'], outputs['pr'] = self.forward_pr(inputs=inputs, targets=pr_targets)
 
     pc_cue = outputs['ps'] if self.training else outputs['pr']['z_cue']
