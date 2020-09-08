@@ -68,7 +68,7 @@ class AHA(MemoryInterface):
 
   def reset(self):
     """Reset modules and optimizers."""
-    self.pc_buffer = []
+    self.pc_buffer = None
 
     # TF-AHA currently only resets PM optimizer, so avoid resetting the PR
     # No point resetting the PS as it's not trainable anyway, keep it consistent between runs
@@ -93,13 +93,13 @@ class AHA(MemoryInterface):
 
       # Reset the module parameters
       if hasattr(module, 'reset_parameters') and resets[name]['params']:
-        print(name, '=>', 'resetting parameters')
+        # print(name, '=>', 'resetting parameters')
         module.reset_parameters()
 
       # Reset the module optimizer
       optimizer_name = name + '_optimizer'
       if hasattr(self, optimizer_name) and resets[name]['optim']:
-        print(name, '=>', 'resetting optimizer')
+        # print(name, '=>', 'resetting optimizer')
         module_optimizer = getattr(self, optimizer_name)
         module_optimizer.state = defaultdict(dict)
 
@@ -138,9 +138,9 @@ class AHA(MemoryInterface):
   def build_pr(self, pr_config, pr_input_shape, pr_target_shape):
     """Builds the Pattern Retrieval (PR) module."""
     pr = SimpleAutoencoder(pr_input_shape, pr_config, output_shape=pr_target_shape).to(self.device)
-    pr_optimizer = optim.AdamW(pr.parameters(),
-                               lr=pr_config['learning_rate'],
-                               weight_decay=pr_config['weight_decay'])
+    pr_optimizer = optim.Adam(pr.parameters(),
+                              lr=pr_config['learning_rate'],
+                              weight_decay=pr_config['weight_decay'])
 
     self.add_module('pr', pr)
     self.add_optimizer('pr', pr_optimizer)
@@ -192,9 +192,7 @@ class AHA(MemoryInterface):
       y = y * pr_config['gain']
 
     # Normalize to [0, 1]
-    # This is not in TF-AHA, may comment it out. I added this because the range changes if you enable
-    # sum_norm for e.g.
-    y = (y - y.min()) / (y.max() - y.min())
+    # y = (y - y.min()) / (y.max() - y.min())
 
     # This output will get used for the matching accuracy, similar to TF-AHA
     pr_out = y  # Unit range
@@ -226,7 +224,7 @@ class AHA(MemoryInterface):
     del pc_config
 
     # Initialise the buffer
-    self.pc_buffer = []
+    self.pc_buffer = None
 
     return pc_input_shape
 
@@ -245,6 +243,11 @@ class AHA(MemoryInterface):
       # Memorise inputs in buffer
       self.pc_buffer = inputs
 
+      # if self.pc_buffer is None:
+      #   self.pc_buffer = inputs
+      # else:
+      #   self.pc_buffer = torch.cat((self.pc_buffer, inputs))
+
       return self.pc_buffer
 
     recalled = torch.zeros_like(inputs)
@@ -258,9 +261,9 @@ class AHA(MemoryInterface):
 
   def build_pm(self, pm_config, pm_input_shape, pm_target_shape):
     pm = SimpleAutoencoder(pm_input_shape, pm_config, output_shape=pm_target_shape).to(self.device)
-    pm_optimizer = optim.AdamW(pm.parameters(),
-                               lr=pm_config['learning_rate'],
-                               weight_decay=pm_config['weight_decay'])
+    pm_optimizer = optim.Adam(pm.parameters(),
+                              lr=pm_config['learning_rate'],
+                              weight_decay=pm_config['weight_decay'])
 
     self.add_module('pm', pm)
     self.add_optimizer('pm', pm_optimizer)

@@ -16,6 +16,35 @@ import numpy as np
 import imageio
 from scipy import ndimage
 
+import tensorflow as tf
+tf.enable_eager_execution()
+
+TF_PREPROCESS = False
+
+def tf_centre_of_mass(images, shape):
+  # Input volumes
+  b, h, w, c = shape
+
+  y_indices = np.zeros((1, h, 1, 1))
+  x_indices = np.zeros((1, 1, w, 1))
+
+  for y in range(h):
+    y_indices[0][y][0][0] = y
+  for x in range(w):
+    x_indices[0][0][x][0] = x
+
+  y_indices = tf.constant(y_indices, dtype=tf.float32)
+  x_indices = tf.constant(x_indices, dtype=tf.float32)
+
+  sum_y = tf.reduce_sum(images * y_indices, axis=[1,2,3])
+  sum_x = tf.reduce_sum(images * x_indices, axis=[1,2,3])
+  sum_p = tf.reduce_sum(images, axis=[1,2,3])
+
+  mean_y = sum_y / sum_p
+  mean_x = sum_x / sum_p
+
+  centre_of_mass = tf.concat([mean_x, mean_y], axis=0)
+  return centre_of_mass
 
 class OmniglotTransformation:
   """Transform Omniglot digits by resizing, centring mass and inverting background/foreground."""
@@ -31,8 +60,13 @@ class OmniglotTransformation:
       height = int(self.resize_factor * x.shape[1])
       width = int(self.resize_factor * x.shape[2])
 
-      x = torchvision.transforms.ToPILImage()(x)
-      x = torchvision.transforms.functional.resize(x, size=[height, width])
+      if TF_PREPROCESS:
+        x = x.permute(1, 2, 0)
+        x = tf.image.resize_images(tf.convert_to_tensor(x.numpy()), [height, width]).numpy()
+      else:
+        x = torchvision.transforms.ToPILImage()(x)
+        x = torchvision.transforms.functional.resize(x, size=[height, width])
+
       x = torchvision.transforms.functional.to_tensor(x)
 
     # Invert image
@@ -44,21 +78,35 @@ class OmniglotTransformation:
       # NCHW => NHWC
       x = x.permute(1, 2, 0)
 
+      # Compute centre
+      centre = np.array([int(x.shape[0]) * 0.5, int(x.shape[1]) * 0.5])
+
       # Compute centre of mass
-      centre = np.array([x.shape[0] * 0.5, x.shape[1] * 0.5])
-      centre_of_mass = ndimage.measurements.center_of_mass(x.numpy())
-      centre_of_mass = np.array(centre_of_mass[:-1])
+      if TF_PREPROCESS:
+        x = tf.convert_to_tensor(x.numpy())
+        centre_of_mass = tf_centre_of_mass([x], [1, int(x.shape[0]), int(x.shape[1]), 1])
+      else:
+        centre_of_mass = ndimage.measurements.center_of_mass(x.numpy())
+        centre_of_mass = np.array(centre_of_mass[:-1])
 
       # Compute translation
-      translation = (centre - centre_of_mass).tolist()
-      translation.reverse()
-
-      # NHWC => NCHW
-      x = x.permute(2, 0, 1)
+      if TF_PREPROCESS:
+        translation = centre - centre_of_mass  # e.g. CoM = 24, centre = 26 => 26 - 24 = 2
+      else:
+        translation = (centre - centre_of_mass).tolist()
+        translation.reverse()
 
       # Apply transformation
-      x = torchvision.transforms.ToPILImage()(x)
-      x = torchvision.transforms.functional.affine(x, 0, translation, scale=1.0, shear=0, resample=Image.BILINEAR)
+      if TF_PREPROCESS:
+        x = tf.contrib.image.translate([x], [translation], interpolation='BILINEAR')
+        x = tf.squeeze(x, axis=0).numpy()  # Drop the batch dimension
+      else:
+        # NHWC => NCHW
+        x = x.permute(2, 0, 1)
+        x = torchvision.transforms.ToPILImage()(x)
+        x = torchvision.transforms.functional.affine(x, 0, translation, scale=1.0, shear=0, resample=Image.BILINEAR)
+
+      # Convert back to tensor
       x = torchvision.transforms.functional.to_tensor(x)
 
     return x

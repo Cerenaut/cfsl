@@ -9,7 +9,7 @@
 
   "pretrained_model_path": "pretrained_model_15.pt",
 
-  "study_steps": 120,
+  "study_steps": 60,
   "study_batch_size": 20,
 
   "ltm": {
@@ -72,6 +72,7 @@
         "norm_inputs": false,
 
         "noise_type": "s",
+        "noise_mode": "add",
         "train_with_noise": 0.05,
         "train_with_noise_pp": 0.005,
         "test_with_noise": 0.0,
@@ -79,7 +80,7 @@
 
         "sparsity": 10,
         "sparsity_boost": 1.0,
-        "sparsen": true,
+        "sparsen": false,
         "softmax": false,
         "shift_bits": false,
         "shift_range": false,

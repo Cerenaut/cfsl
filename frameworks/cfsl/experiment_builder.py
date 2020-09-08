@@ -264,7 +264,7 @@ class ExperimentBuilder(object):
         return start_time, state
 
     def evaluate_test_set_using_the_best_models(self, top_n_models):
-        if 'per_epoch_statistics' in self.state:
+        if 'per_epoch_statistics' in self.state and 'val_accuracy_mean' in self.state['per_epoch_statistics']:
             per_epoch_statistics = self.state['per_epoch_statistics']
             val_acc = np.copy(per_epoch_statistics['val_accuracy_mean'])
             val_idx = np.array([i for i in range(len(val_acc))])
@@ -281,7 +281,14 @@ class ExperimentBuilder(object):
 
             test_losses = [dict() for i in range(top_n_models)]
         else:
-            top_n_idx = [i for i in range(top_n_models)]
+            val_idx = list(range(self.total_epochs))
+            val_idx.sort(reverse=True)
+
+            # top_n_idx = [i for i in range(top_n_models)]
+            top_n_idx = val_idx[:top_n_models]
+
+            print(top_n_idx)
+
             per_model_per_batch_preds = [[] for i in range(top_n_models)]
             per_model_per_batch_targets = [[] for i in range(top_n_models)]
             test_losses = [dict() for i in range(top_n_models)]

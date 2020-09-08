@@ -113,8 +113,13 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         num_target_samples = x_target_set.shape[0]
         num_support_samples = x_support_set.shape[0]
 
+        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+
         output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
             self.num_classes_per_set * self.num_support_sets
+
+        print('output units =', output_units)
 
         self.current_iter = 0
 
@@ -215,6 +220,8 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
                 self.to(self.device)
 
             self.device = torch.cuda.current_device()
+
+        self.classifier.to(self.device)
 
     def switch_opt_params(self, exclude_list):
         print("current trainable params")
@@ -494,8 +501,12 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         state = torch.load(filepath, map_location='cpu')
         net = dict(state['network'])
 
+        net['classifier.layer_dict.linear_0.weights'] = torch.cat((net['classifier.layer_dict.linear_0.weights'], net['classifier.layer_dict.linear_0.weights']))
+        net['classifier.layer_dict.linear_0.bias'] = torch.cat((net['classifier.layer_dict.linear_0.bias'], net['classifier.layer_dict.linear_0.bias']))
+
         state['network'] = OrderedDict(net)
         state_dict_loaded = state['network']
+
         self.load_state_dict(state_dict=state_dict_loaded)
         self.starting_iter = state['current_iter']
 

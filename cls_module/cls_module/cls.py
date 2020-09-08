@@ -49,11 +49,13 @@ class CLS(nn.Module):
   def build(self):
     """Build and initialize the long-term and short-term memory modules."""
     ltm_config = self.config[self.ltm_key]
-    ltm_ = ltm.VisualComponent(config=ltm_config,
-                               input_shape=self.input_shape,
-                               target_shape=None,
-                               device=self.device,
-                               writer=self.writer)
+    # ltm_class = ltm.VisualComponent
+    ltm_class = ltm.VGG
+    ltm_ = ltm_class(config=ltm_config,
+                     input_shape=self.input_shape,
+                     target_shape=None,
+                     device=self.device,
+                     writer=self.writer)
 
     stm_config = self.config[self.stm_key]
     stm_class = stm.AHA
@@ -115,15 +117,18 @@ class CLS(nn.Module):
     super().load_state_dict(modified_state_dict, strict)
 
     # Load pre-trained VC weights from TensorFlow implementation
-    module_dirpath = os.path.dirname(cls_module.__file__)
-    weights_filepath = os.path.join(module_dirpath, '..', 'vc_weights.npz')
+    load_tf_vc_weights = False
 
-    vc_params = np.load(weights_filepath)
-    vc_encoder_weight = torch.from_numpy(vc_params['weights']).permute(3, 2, 0, 1)
-    vc_encoder_bias = torch.from_numpy(vc_params['encoding_bias'])
+    if load_tf_vc_weights:
+      module_dirpath = os.path.dirname(cls_module.__file__)
+      weights_filepath = os.path.join(module_dirpath, '..', 'vc_weights.npz')
 
-    self.ltm.vc.encoder.weight.data = vc_encoder_weight.to(self.device)
-    self.ltm.vc.encoder.bias.data = vc_encoder_bias.to(self.device)
+      vc_params = np.load(weights_filepath)
+      vc_encoder_weight = torch.from_numpy(vc_params['weights']).permute(3, 2, 0, 1)
+      vc_encoder_bias = torch.from_numpy(vc_params['encoding_bias'])
+
+      self.ltm.vc.encoder.weight.data = vc_encoder_weight.to(self.device)
+      self.ltm.vc.encoder.bias.data = vc_encoder_bias.to(self.device)
 
   def pretrain(self, inputs, labels):
     return self.forward(inputs, labels, mode='pretrain')
