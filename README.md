@@ -1,4 +1,4 @@
-# Continiual Few Shot Learning
+# Continual Few Shot Learning
 
 ## Requirements
 - PyTorch 1.5.1+
@@ -23,9 +23,9 @@ Run the experiment using `python oneshot_cls.py --config path/to/config.json`
 
 
 ### CFSL Benchmark
-The code is available under `frameworks/cfsl` and is dervied from https://github.com/AntreasAntoniou/FewShotContinualLearning
+The code is available under `frameworks/cfsl` and is derived from https://github.com/AntreasAntoniou/FewShotContinualLearning
 
-To run the experiments with CLS, you can simply modify the configuration file in `imniglot_cls.json`
+To run the experiments with CLS, you can simply modify the configuration file in `omniglot_cls.json`
 and then run the experiment using `bash omniglot_cls.sh GPU_ID latest`.
 
 **Note:** Set `GPU_ID` to `0` if you are not using a GPU, and `1` if you are using a GPU.
