@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export GPU_ID=$1
+export GPU_ID=${1:-0}
 export CONTINUE_FROM_EPOCH=${2:-latest}
 
 
