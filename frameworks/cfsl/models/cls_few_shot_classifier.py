@@ -236,9 +236,9 @@ class CLSFewShotClassifier(nn.Module):
 
         support_ltm_encodings = post_ltm_support_outputs['memory']['output']
 
-        _, stm_support_outputs = self.model.stm(inputs=support_ltm_encodings,
-                                                targets=x_support_set_task,
-                                                labels=y_support_set_task)
+        # _, stm_support_outputs = self.model.stm(inputs=support_ltm_encodings,
+        #                                         targets=x_support_set_task,
+        #                                         labels=y_support_set_task)
 
         target_losses, target_outputs = self.model.ltm(inputs=x_target_set_task,
                                                        targets=None,
@@ -246,9 +246,9 @@ class CLSFewShotClassifier(nn.Module):
 
         target_ltm_encodings = target_outputs['memory']['output']
 
-        _, stm_target_outputs = self.model.stm(inputs=target_ltm_encodings,
-                                               targets=x_target_set_task,
-                                               labels=y_target_set_task)
+        # _, stm_target_outputs = self.model.stm(inputs=target_ltm_encodings,
+        #                                        targets=x_target_set_task,
+        #                                        labels=y_target_set_task)
 
       # Compute Matching Accuracy
       # ---------------------------------------------------------------------------------------------------------------
