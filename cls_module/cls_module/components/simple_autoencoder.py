@@ -39,7 +39,6 @@ class SimpleAutoencoder(nn.Module):
     self.encoder_nonlinearity = utils.activation_fn(self.config['encoder_nonlinearity'])
     self.decoder_nonlinearity = utils.activation_fn(self.config['decoder_nonlinearity'])
 
-
     self.reset_parameters()
 
   def reset_parameters(self):
@@ -72,6 +71,8 @@ class SimpleAutoencoder(nn.Module):
     return inputs
 
   def encode(self, inputs):
+    inputs = torch.flatten(inputs, start_dim=1)
+
     encoding = self.encoder(inputs)
     encoding = self.encoder_nonlinearity(encoding)
 
