@@ -12,6 +12,9 @@
   "study_steps": 60,
   "study_batch_size": 20,
 
+  "ltm_type": "vc",
+  "stm_type": "aha",
+
   "ltm": {
     "learning_rate": 0.001,
 
@@ -19,7 +22,8 @@
     "kernel_size": 10,
     "stride": 5,
     "eval_stride": 1,
-    "padding": 4,
+    "encoder_padding": 0,
+    "decoder_padding": 0,
 
     "encoder_nonlinearity": "none",
     "decoder_nonlinearity": "none",

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from cls_module import utils
 
 from cls_module.memory.interface import MemoryInterface
-from meta_neural_network_architectures import VGGActivationNormNetwork
+from .meta_neural_network_architectures import VGGActivationNormNetwork
 
 class VGG(MemoryInterface):
   """An implementation of a long-term memory module using sparse convolutional autoencoder."""

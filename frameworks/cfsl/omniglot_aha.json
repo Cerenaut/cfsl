@@ -35,7 +35,12 @@
 
   "cls_config": {
     "study_steps": 60,
+
     "replay_buffer_max_length": 10,
+
+    "ltm_type": "vgg",
+    "stm_type": "aha",
+    
     "ltm-vc": {
       "learning_rate": 0.001,
 
