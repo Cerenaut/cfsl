@@ -3,7 +3,7 @@
 import os
 import random
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, deque
 
 import numpy as np
 
@@ -32,7 +32,7 @@ class CLSFewShotClassifier(nn.Module):
     Initializes a CLS few shot learning system
     :param im_shape: The images input size, in batch, c, h, w shape
     :param device: The device to use to use the model on.
-    :param args: A namedtuple of arguments specifying various hyperparameters.
+    :param args: A named tuple of arguments specifying various hyperparameters.
     """
     super(CLSFewShotClassifier, self).__init__()
 
@@ -61,6 +61,9 @@ class CLSFewShotClassifier(nn.Module):
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
 
     self.ltm_state_dict = None
+
+    # set max size of the circular replay_buffer
+    self.replay_buffer_max_len = self.cls_config['replay_buffer_max_length']
 
     # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
@@ -102,7 +105,6 @@ class CLSFewShotClassifier(nn.Module):
       else:
         if param.requires_grad:
           yield (name, param)
-
 
   def get_replay_batch(self, replay_buffer, x_support, y_support, k=None, interleave=True):
     """Build an interleaved batch with current support set and random samples from the replay buffer."""
@@ -161,8 +163,8 @@ class CLSFewShotClassifier(nn.Module):
       step_idx = 0
 
       replay_buffer = {
-          'inputs': [],
-          'labels': []
+          'inputs': deque([], self.replay_buffer_max_len),
+          'labels': deque([], self.replay_buffer_max_len)
       }
 
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
