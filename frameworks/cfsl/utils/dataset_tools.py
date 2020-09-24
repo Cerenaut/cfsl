@@ -26,8 +26,8 @@ def check_download_dataset(dataset_name):
 
         zip_directory = "{}.tar.bz2".format(os.path.join(os.environ['DATASET_DIR'], datasets[dataset_idx]))
         if not os.path.exists(zip_directory):
-            print("New dataset not found, resetting")
-            shutil.rmtree(dataset_path, ignore_errors=True)
+            print("New dataset path: {} not found, resetting".format(zip_directory))
+            # shutil.rmtree(dataset_path, ignore_errors=True)
 
         if not os.path.exists(os.environ['DATASET_DIR']):
             os.mkdir(os.environ['DATASET_DIR'])

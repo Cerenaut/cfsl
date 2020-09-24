@@ -403,4 +403,4 @@ class ExperimentBuilder(object):
                         save_to_json(filename=os.path.join(self.logs_filepath, "summary_statistics.json"),
                                      dict_to_store=self.state['per_epoch_statistics'])
 
-            self.evaluate_test_set_using_the_best_models(top_n_models=5)
+            self.evaluate_test_set_using_the_best_models(top_n_models=self.top_n_models)
