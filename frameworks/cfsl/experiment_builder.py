@@ -281,10 +281,16 @@ class ExperimentBuilder(object):
 
             test_losses = [dict() for i in range(top_n_models)]
         else:
-            val_idx = list(range(self.total_epochs))
-            val_idx.sort(reverse=True)
+            # Build a list of epochs, and reverses it so we can look up the
+            # latest N model checkpoints.
+            val_idx = list(range(self.total_epochs))  # [0, 1, ..., 8, 9] if total_epochs = 10
+            val_idx.sort(reverse=True)  # [9, 8, 7, ..., 0]
 
+            # Previously, CFSL simply picked N from a list of [0...N]
+            # This resulted it in it picking the earliest checkpoints
             # top_n_idx = [i for i in range(top_n_models)]
+
+            # Instead, we use the above `val_idx` list to pick the N most recent models
             top_n_idx = val_idx[:top_n_models]
 
             print(top_n_idx)
