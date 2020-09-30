@@ -1,3 +1,4 @@
+
 {
   "batch_size": 1,
   "image_height": 28,
@@ -22,6 +23,7 @@
   "num_evaluation_tasks": 600,
   "num_support_set_steps": 120,
   "num_target_set_steps": 0,
+  "top_n_models": 1,
 
   "number_of_training_steps_per_iter": 5,
   "number_of_evaluation_steps_per_iter": 0,
@@ -35,9 +37,11 @@
   "cls_config": {
     "study_steps": 60,
 
+    "replay_buffer_max_length": 10,
+
     "ltm_type": "vgg",
     "stm_type": "aha",
-
+    
     "ltm-vc": {
       "learning_rate": 0.001,
 

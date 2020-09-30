@@ -161,7 +161,7 @@ class SparseAutoencoder(nn.Module):
     if self.config['use_tied_weights']:
       decoder_weight = self.encoder.weight
 
-    if self.decoder_padding == 'same':
+    if self.config['decoder_padding'] == 'same':
       decoding = utils.conv_transpose2d_same(encoding, decoder_weight,
                                              bias=self.decoder.bias,
                                              stride=stride,
