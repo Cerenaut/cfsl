@@ -38,6 +38,10 @@
     "study_steps": 60,
 
     "replay_buffer_max_length": 10,
+    "replay_method": "recall",
+    "replay_interleave": true,
+    "replay_num_samples": 5,
+    "reset_stm_per_run": true,
 
     "ltm_type": "vgg",
     "stm_type": "aha",

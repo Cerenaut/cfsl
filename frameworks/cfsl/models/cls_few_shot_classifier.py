@@ -62,9 +62,6 @@ class CLSFewShotClassifier(nn.Module):
 
     self.ltm_state_dict = None
 
-    # set max size of the circular replay_buffer
-    self.replay_buffer_max_len = self.cls_config['replay_buffer_max_length']
-
     # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
 
@@ -112,8 +109,17 @@ class CLSFewShotClassifier(nn.Module):
     y_replay_set = [y_support]
 
     if interleave and (replay_buffer['inputs'] and replay_buffer['labels']):
-      replay_buffer_inputs_flat = torch.cat(replay_buffer['inputs'])
-      replay_buffer_labels_flat = torch.cat(replay_buffer['labels'])
+
+      # get tuples from the replay_buffer deques
+      replay_buffer_inputs = []
+      replay_buffer_labels = []
+      for item in replay_buffer['inputs']:
+        replay_buffer_inputs.append(item)
+      for item in replay_buffer['labels']:
+        replay_buffer_labels.append(item)
+
+      replay_buffer_inputs_flat = torch.cat(replay_buffer_inputs)
+      replay_buffer_labels_flat = torch.cat(replay_buffer_labels)
 
       replay_buffer_indices = list(range(replay_buffer_inputs_flat.size(0)))
 
@@ -136,13 +142,13 @@ class CLSFewShotClassifier(nn.Module):
 
     x_support_set, x_target_set, y_support_set, y_target_set, *_ = data_batch
 
-    num_study_steps = self.cls_config['study_steps']
     num_consolidation_steps = self.num_support_set_steps
-    replay_method = 'recall'  # recall, or groundtruth
-    replay_interleave = False
-    replay_num_samples = 5
-    reset_stm_per_run = False
-
+    num_study_steps = self.cls_config['study_steps']
+    replay_method = self.cls_config['replay_method']  # 'recall'  # recall, or groundtruth
+    replay_interleave = self.cls_config['replay_interleave']
+    replay_num_samples = self.cls_config['replay_num_samples']  # 5
+    reset_stm_per_run = self.cls_config['reset_stm_per_run']
+    replay_buffer_max_len = self.cls_config['replay_buffer_max_length']  # set max size of the circular replay_buffer
     per_task_preds = []
 
     per_task_target_ltm_loss = []
@@ -163,8 +169,8 @@ class CLSFewShotClassifier(nn.Module):
       step_idx = 0
 
       replay_buffer = {
-          'inputs': deque([], self.replay_buffer_max_len),
-          'labels': deque([], self.replay_buffer_max_len)
+          'inputs': deque([], replay_buffer_max_len),
+          'labels': deque([], replay_buffer_max_len)
       }
 
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
