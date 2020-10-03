@@ -4,10 +4,10 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 
-from cls_module import utils
+from cerenaut_pt_core import utils
 
 from cls_module.memory.interface import MemoryInterface
-from cls_module.components.sparse_autoencoder import SparseAutoencoder
+from cerenaut_pt_core.components.sparse_autoencoder import SparseAutoencoder
 
 
 class VisualComponent(MemoryInterface):

@@ -5,7 +5,7 @@ import torch.nn as nn
 
 import numpy as np
 
-import cls_module.utils as utils
+import cerenaut_pt_core.utils as utils
 
 
 class DG(nn.Module):

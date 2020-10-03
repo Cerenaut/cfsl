@@ -12,7 +12,7 @@ import torchvision
 import numpy as np
 
 import cls_module
-from cls_module.utils import square_image_shape_from_1d
+from cerenaut_pt_core.utils import square_image_shape_from_1d
 from .memory import ltm, stm
 
 

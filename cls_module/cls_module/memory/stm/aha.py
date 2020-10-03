@@ -8,10 +8,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from cls_module.utils import build_topk_mask
 from cls_module.memory.interface import MemoryInterface
 from cls_module.components.dg import DG
-from cls_module.components.simple_autoencoder import SimpleAutoencoder
+from cerenaut_pt_core.components.simple_autoencoder import SimpleAutoencoder
+from cerenaut_pt_core.utils import build_topk_mask
+
 
 def pc_to_unit(tensor):
   """
