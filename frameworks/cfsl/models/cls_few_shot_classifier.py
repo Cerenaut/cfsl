@@ -18,7 +18,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from cls_module.cls import CLS
-from frameworks.cfsl.utils.generic import set_torch_seed, calculate_cosine_distance
+from utils.generic import set_torch_seed, calculate_cosine_distance
 
 matplotlib.use('Agg')
 
