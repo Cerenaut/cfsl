@@ -3,8 +3,10 @@ import time
 
 import numpy as np
 import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
-from utils.storage import build_experiment_folder, save_statistics, save_to_json
+from utils.storage import build_experiment_folder, save_statistics, save_to_json, save_config
+
 
 class ExperimentBuilder(object):
     def __init__(self, data_dict, model, experiment_name, continue_from_epoch, max_models_to_save,
@@ -33,6 +35,7 @@ class ExperimentBuilder(object):
         self.max_models_to_save = max_models_to_save
         self.create_summary_csv = False
         self.evaluate_on_test_set_only = evaluate_on_test_set_only
+        self.writer = None
 
         for key, value in args.__dict__.items():
             setattr(self, key, value)
@@ -81,6 +84,17 @@ class ExperimentBuilder(object):
         self.start_time = time.time()
         self.epochs_done_in_this_run = 0
         print(self.state['current_iter'], int(total_iter_per_epoch * total_epochs))
+
+        # log the config params
+        config_filepath = save_config(self.logs_filepath, args.__dict__, filename="config.json")
+        print("saved config at", config_filepath)
+
+        # set setup Tensorboard
+        self.writer = SummaryWriter(self.logs_filepath)
+
+    def close_writer(self):
+        if self.writer:
+            self.writer.close()
 
     def build_summary_dict(self, total_losses, phase, summary_losses=None):
         """
@@ -318,15 +332,21 @@ class ExperimentBuilder(object):
                                                                                model_idx=idx,
                                                                                per_model_per_batch_preds=per_model_per_batch_preds,
                                                                                pbar_test=pbar_test)
-        per_batch_preds = np.mean(per_model_per_batch_preds, axis=0)
 
-        per_batch_max = np.argmax(per_batch_preds, axis=2)
+        # shape: per_model_per_batch_preds = [Model, Tasks, Sample, Classes]
+        per_batch_preds = np.mean(per_model_per_batch_preds, axis=0)    # shape: [Tasks, Samples, Classes]
+        per_batch_max = np.argmax(per_batch_preds, axis=2)              # shape: [Tasks, Samples]
         per_batch_targets = np.array(per_model_per_batch_targets[0]).reshape(per_batch_max.shape)
 
         accuracy = np.mean(np.equal(per_batch_targets, per_batch_max))
         accuracy_std = np.std(np.equal(per_batch_targets, per_batch_max))
 
         test_losses = {"test_accuracy_mean": accuracy, "test_accuracy_std": accuracy_std}
+
+        self.writer.add_histogram("per_model_per_batch_preds", per_batch_preds)
+        self.writer.add_histogram("model_0-per_batch_preds", per_batch_max)
+        self.writer.flush()
+        print("saved histograms for tensorboard")
 
         _ = save_statistics(self.logs_filepath,
                             list(test_losses.keys()),
@@ -343,6 +363,7 @@ class ExperimentBuilder(object):
         Runs a full training experiment with evaluations of the model on the val set at every epoch. Furthermore,
         will return the test set evaluation results on the best performing validation model.
         """
+
         with tqdm.tqdm(initial=self.state['current_iter'],
                        total=int(self.total_iter_per_epoch * self.total_epochs)) as pbar_train:
 
@@ -410,3 +431,4 @@ class ExperimentBuilder(object):
                                      dict_to_store=self.state['per_epoch_statistics'])
 
             self.evaluate_test_set_using_the_best_models(top_n_models=self.top_n_models)
+

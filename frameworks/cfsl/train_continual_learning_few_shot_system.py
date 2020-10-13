@@ -1,4 +1,5 @@
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
 from utils.parser_utils import get_args
 
@@ -104,4 +105,7 @@ maml_system = ExperimentBuilder(model=model, data_dict=data_dict, experiment_nam
                                 batch_size=args.batch_size, max_models_to_save=args.max_models_to_save,
                                 evaluate_on_test_set_only=args.evaluate_on_test_set_only,
                                 args=args)
+
 maml_system.run_experiment()
+
+maml_system.close_writer()
