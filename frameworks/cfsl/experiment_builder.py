@@ -333,7 +333,7 @@ class ExperimentBuilder(object):
                                                                                per_model_per_batch_preds=per_model_per_batch_preds,
                                                                                pbar_test=pbar_test)
 
-        # shape: per_model_per_batch_preds = [Model, Tasks, Sample, Classes]
+        # per_model_per_batch_preds shape: [Model, Tasks, Sample, Classes]
         per_batch_preds = np.mean(per_model_per_batch_preds, axis=0)    # shape: [Tasks, Samples, Classes]
         per_batch_max = np.argmax(per_batch_preds, axis=2)              # shape: [Tasks, Samples]
         per_batch_targets = np.array(per_model_per_batch_targets[0]).reshape(per_batch_max.shape)
@@ -341,12 +341,28 @@ class ExperimentBuilder(object):
         accuracy = np.mean(np.equal(per_batch_targets, per_batch_max))
         accuracy_std = np.std(np.equal(per_batch_targets, per_batch_max))
 
-        test_losses = {"test_accuracy_mean": accuracy, "test_accuracy_std": accuracy_std}
+        test_losses = {"test_accuracy_mean_avmodel": accuracy, "test_accuracy_std_avmodel": accuracy_std}
 
-        self.writer.add_histogram("per_model_per_batch_preds", per_batch_preds)
-        self.writer.add_histogram("model_0-per_batch_preds", per_batch_max)
-        self.writer.flush()
-        print("saved histograms for tensorboard")
+        new_metrics = True
+        if new_metrics:
+            per_model_per_batch_max = np.argmax(per_model_per_batch_preds, axis=3)  # shape: [Model, Tasks, Samples]
+
+            correct = np.equal(per_batch_targets, per_model_per_batch_max)  # [Model, Tasks, Samples]
+            correct = correct.reshape([correct.shape[0], correct.shape[1]*correct.shape[2]])
+            per_model_accuracy = np.mean(correct, axis=1)                   # shape: [Model, Accuracy]
+            print("per_model_accuracy: ", per_model_accuracy.shape)
+
+            accuracy_mean = np.mean(per_model_accuracy)
+            accuracy_std = np.std(per_model_accuracy)
+
+            test_losses.update({"test_accuracy_mean": accuracy_mean, "test_accuracy_std": accuracy_std})
+
+            for key, val in test_losses.items():
+                self.writer.add_scalar(key, val)
+            self.writer.add_scalars("test_accuracies", test_losses)
+            self.writer.add_histogram("per_model_accuracy", per_model_accuracy)
+            self.writer.flush()
+            print("saved histograms for tensorboard")
 
         _ = save_statistics(self.logs_filepath,
                             list(test_losses.keys()),
