@@ -358,8 +358,8 @@ class ExperimentBuilder(object):
             test_losses.update({"test_accuracy_mean": accuracy_mean, "test_accuracy_std": accuracy_std})
 
             for key, val in test_losses.items():
-                self.writer.add_scalar(key, val)
-            self.writer.add_scalars("test_accuracies", test_losses)
+                self.writer.add_scalar("test_accuracies/" + key, val)
+            # self.writer.add_scalars("test_accuracies", test_losses)
             self.writer.add_histogram("per_model_accuracy", per_model_accuracy)
             self.writer.flush()
             print("saved histograms for tensorboard")
