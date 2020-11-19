@@ -63,6 +63,8 @@ def check_download_dataset(dataset_name):
         total_files = 0
         for subdir, dir, files in os.walk(dataset_path):
             for file in files:
+                if file.lower().startswith("._"):
+                    continue
                 if file.lower().endswith(".jpeg") or file.lower().endswith(".jpg") or file.lower().endswith(
                         ".png") or file.lower().endswith(".pkl"):
                     total_files += 1
