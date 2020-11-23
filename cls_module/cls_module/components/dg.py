@@ -120,7 +120,7 @@ class DG(nn.Module):
     Return number of bits that overlap """
 
     num_samples = encoding.shape[0]
-    batch_overlap = torch.zeros(num_samples)
+    batch_overlap = torch.zeros(num_samples).to(encoding.device)
 
     for i in range(num_samples):
       a = encoding[i]
