@@ -113,8 +113,8 @@ class FineTuneFromScratchFewShotClassifier(MAMLFewShotClassifier):
         num_target_samples = x_target_set.shape[0]
         num_support_samples = x_support_set.shape[0]
 
-       output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         self.current_iter = 0
 

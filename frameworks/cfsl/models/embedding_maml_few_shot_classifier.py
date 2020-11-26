@@ -99,7 +99,7 @@ class EmbeddingMAMLFewShotClassifier(MAMLFewShotClassifier):
         self.current_iter = 0
 
         output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         self.classifier = VGGActivationNormNetworkWithAttention(input_shape=encoded_x.shape,
                                                                 num_output_classes=output_units,

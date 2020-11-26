@@ -113,7 +113,7 @@ class VGGMAMLFewShotClassifier(MAMLFewShotClassifier):
         num_support_samples = x_support_set.shape[0]
 
         output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         self.current_iter = 0
 
