@@ -116,9 +116,6 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
           (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
-        output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            self.num_classes_per_set * self.num_support_sets
-
         print('output units =', output_units)
 
         self.current_iter = 0
@@ -212,14 +209,13 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
 
         self.device = torch.device('cpu')
         if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
 
             if torch.cuda.device_count() > 1:
                 self.to(self.device)
                 self.dense_net_embedding = nn.DataParallel(module=self.dense_net_embedding)
             else:
                 self.to(self.device)
-
-            self.device = torch.cuda.current_device()
 
         self.classifier.to(self.device)
 

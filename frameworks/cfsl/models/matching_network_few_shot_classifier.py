@@ -41,6 +41,7 @@ class MatchingNetworkFewShotClassifier(nn.Module):
 
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
+            
             if torch.cuda.device_count() > 1:
                 self.classifier = nn.DataParallel(self.classifier)
 

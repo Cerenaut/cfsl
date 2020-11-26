@@ -98,8 +98,8 @@ class EmbeddingMAMLFewShotClassifier(MAMLFewShotClassifier):
 
         self.current_iter = 0
 
-        output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            self.num_classes_per_set * self.num_support_sets
+        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         self.classifier = VGGActivationNormNetworkWithAttention(input_shape=encoded_x.shape,
                                                                 num_output_classes=output_units,
@@ -187,14 +187,13 @@ class EmbeddingMAMLFewShotClassifier(MAMLFewShotClassifier):
         self.switch_opt_params(exclude_list=self.exclude_list)
         self.device = torch.device('cpu')
         if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
 
             if torch.cuda.device_count() > 1:
                 self.to(self.device)
                 self.dense_net_embedding = nn.DataParallel(module=self.dense_net_embedding)
             else:
                 self.to(self.device)
-
-            self.device = torch.cuda.current_device()
 
     def switch_opt_params(self, exclude_list):
         print("current trainable params")
