@@ -400,7 +400,7 @@ class ExperimentBuilder(object):
                         current_iter=self.state['current_iter'],
                         sample_idx=self.state['current_iter'])
 
-                    validate = False
+                    validate = self.validate
                     better_val_model = False
                     if self.state['current_iter'] % self.total_iter_per_epoch == 0:
 
