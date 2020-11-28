@@ -121,10 +121,15 @@ class ExperimentBuilder(object):
         :return: A summary string ready to be shown to humans.
         """
         output_update = ""
+
         for key, value in zip(list(summary_losses.keys()), list(summary_losses.values())):
             if ("loss" in key or "accuracy" in key or 'opt' in key) and (not "pre" in key and not "post" in key):
                 value = float(value)
                 output_update += "{}: {:.4f}, ".format(key, value)
+
+                self.writer.add_scalar(key, value)
+
+        self.writer.flush()
 
         return output_update
 
