@@ -497,8 +497,8 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         state = torch.load(filepath, map_location='cpu')
         net = dict(state['network'])
 
-        net['classifier.layer_dict.linear_0.weights'] = torch.cat((net['classifier.layer_dict.linear_0.weights'], net['classifier.layer_dict.linear_0.weights']))
-        net['classifier.layer_dict.linear_0.bias'] = torch.cat((net['classifier.layer_dict.linear_0.bias'], net['classifier.layer_dict.linear_0.bias']))
+        # net['classifier.layer_dict.linear_0.weights'] = torch.cat((net['classifier.layer_dict.linear_0.weights'], net['classifier.layer_dict.linear_0.weights']))
+        # net['classifier.layer_dict.linear_0.bias'] = torch.cat((net['classifier.layer_dict.linear_0.bias'], net['classifier.layer_dict.linear_0.bias']))
 
         state['network'] = OrderedDict(net)
         state_dict_loaded = state['network']
