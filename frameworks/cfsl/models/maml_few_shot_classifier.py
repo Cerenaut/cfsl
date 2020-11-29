@@ -85,7 +85,7 @@ class MAMLFewShotClassifier(nn.Module):
         print("Inner Loop parameters")
         num_params = 0
         for key, value in self.inner_loop_optimizer.named_parameters():
-            print(key, value.shape)
+            # print(key, value.shape)
             num_params += np.prod(value.shape)
         print('Total inner loop parameters', num_params)
 
@@ -93,7 +93,7 @@ class MAMLFewShotClassifier(nn.Module):
         num_params = 0
         for name, param in self.named_parameters():
             if param.requires_grad:
-                print(name, param.shape)
+                # print(name, param.shape)
                 num_params += np.prod(value.shape)
         print('Total outer loop parameters', num_params)
 
@@ -101,7 +101,7 @@ class MAMLFewShotClassifier(nn.Module):
         num_params = 0
         for name, param in self.get_params_that_include_strings(included_strings=['classifier']):
             if param.requires_grad:
-                print(name, param.shape)
+                # print(name, param.shape)
                 num_params += np.prod(value.shape)
         print('Total Memory parameters', num_params)
 
