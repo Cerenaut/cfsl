@@ -146,3 +146,4 @@ run/
 cluster_experiment_scripts/
 *.pt
 *.npz
+*.png
