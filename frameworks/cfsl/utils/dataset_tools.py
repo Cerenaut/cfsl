@@ -1,13 +1,21 @@
-import concurrent.futures
-import json
 import os
+import json
 import shutil
+import urllib
+import pathlib
+import tarfile
+import tempfile
+import concurrent.futures
 
 import numpy as np
 import tqdm
 from PIL import Image
 from torchvision import transforms
 
+
+DOWNLOAD_URL = {
+  'omniglot_dataset': 'https://storage.googleapis.com/project-agi/datasets/omniglot/omniglot_dataset.tar.bz2'
+}
 
 def unzip_file(filepath_pack, filepath_to_store):
     print("unzipping", filepath_pack, "to", filepath_to_store)
@@ -26,8 +34,8 @@ def check_download_dataset(dataset_name):
 
         zip_directory = "{}.tar.bz2".format(os.path.join(os.environ['DATASET_DIR'], datasets[dataset_idx]))
         if not os.path.exists(zip_directory):
-            print("New dataset not found, resetting")
-            shutil.rmtree(dataset_path, ignore_errors=True)
+            print("New dataset path: {} not found, resetting".format(zip_directory))
+            # shutil.rmtree(dataset_path, ignore_errors=True)
 
         if not os.path.exists(os.environ['DATASET_DIR']):
             os.mkdir(os.environ['DATASET_DIR'])
@@ -35,21 +43,28 @@ def check_download_dataset(dataset_name):
         if not os.path.exists(dataset_path):
             print("Not found dataset folder structure.. searching for .tar.bz2 file")
             zip_directory = "{}.tar.bz2".format(os.path.join(os.environ['DATASET_DIR'], datasets[dataset_idx]))
+
             if not os.path.exists(zip_directory):
                 print("Not found zip file, downloading..", zip_directory)
-                return FileNotFoundError('Dataset is missing from the datasets folder, please download datasets and place '
-                                         'them in the datasets folder as specified in the README.md file')
 
-            else:
-                print("Found zip file, unpacking")
-            unzip_file(
-                filepath_pack=os.path.join(os.environ['DATASET_DIR'], "{}.tar.bz2".format(datasets[dataset_idx])),
-                filepath_to_store=os.environ['DATASET_DIR'])
+                url = DOWNLOAD_URL[dataset_name]
 
+                print('Downloading {0} to {1}'.format(url, zip_directory))
+                urllib.request.urlretrieve(url, zip_directory)
+
+                # return FileNotFoundError('Dataset is missing from the datasets folder, please download datasets and place '
+                #                          'them in the datasets folder as specified in the README.md file')
+
+            print("Unpacking zip file: ", zip_directory)
+            tar_ref = tarfile.open(zip_directory, mode='r')
+            tar_ref.extractall(os.environ['DATASET_DIR'])
+            tar_ref.close()
 
         total_files = 0
         for subdir, dir, files in os.walk(dataset_path):
             for file in files:
+                if file.lower().startswith("._"):
+                    continue
                 if file.lower().endswith(".jpeg") or file.lower().endswith(".jpg") or file.lower().endswith(
                         ".png") or file.lower().endswith(".pkl"):
                     total_files += 1
@@ -131,7 +146,7 @@ def load_test_image(filepath):
         print("converting")
         image = Image.open(filepath)
     except:
-        print("Broken image")
+        print("Broken image", filepath)
 
     if image is not None:
         return filepath
@@ -152,6 +167,8 @@ def get_data_paths(data_path, labels_as_int, indexes_of_folders_indicating_class
     labels = set()
     for subdir, dir, files in os.walk(data_path):
         for file in files:
+            if file.lower().startswith("._"):
+              continue
             if (".jpeg") in file.lower() or (".png") in file.lower() or (".jpg") in file.lower():
                 filepath = os.path.join(subdir, file)
 
@@ -161,7 +178,7 @@ def get_data_paths(data_path, labels_as_int, indexes_of_folders_indicating_class
                 data_image_path_list_raw.append(filepath)
 
                 labels.add(label)
-
+                
     labels = sorted(labels)
     idx_to_label_name = {idx: label for idx, label in enumerate(labels)}
     label_name_to_idx = {label: idx for idx, label in enumerate(labels)}
