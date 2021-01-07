@@ -352,7 +352,6 @@ class CLSFewShotClassifier(nn.Module):
     :return: The losses of the ran iteration.
     """
     epoch = int(epoch)
-    self.scheduler.step(epoch=epoch)
 
     if self.current_epoch != epoch:
       self.current_epoch = epoch
@@ -376,12 +375,14 @@ class CLSFewShotClassifier(nn.Module):
     losses = dict()
     losses['loss'] = model_losses['ltm']['memory']['loss']
     losses['accuracy'] = accuracy
-    losses['learning_rate'] = self.scheduler.get_lr()[0]
+    losses['learning_rate'] = self.ltm_scheduler.get_last_lr()[0]
 
     self.current_iter += 1
 
     # Update the LTM state dict
     self.ltm_state_dict = self.model.ltm.get_state_dict()
+
+    self.ltm_scheduler.step()
 
     return losses, None
 

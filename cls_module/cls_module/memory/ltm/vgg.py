@@ -58,6 +58,9 @@ class VGG(MemoryInterface):
   def update_predictor(self, idx):
     predictor_name = 'layer_dict.linear_'
 
+    if idx == self.predictor_idx:
+      return
+
     prev_predictor = predictor_name + str(self.predictor_idx)
     next_predictor = predictor_name + str(idx)
 
