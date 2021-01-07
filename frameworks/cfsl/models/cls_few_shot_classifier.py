@@ -53,6 +53,10 @@ class CLSFewShotClassifier(nn.Module):
     self.cls_config['ltm']['classifier']['output_units'] = [self.output_units, 2000]
     self.cls_config['stm']['classifier']['output_units'] = self.output_units
 
+    self.cls_config['ltm']['num_support_sets'] = self.num_support_sets
+    self.cls_config['ltm']['num_support_set_steps'] = self.num_support_set_steps
+    self.cls_config['ltm']['num_target_set_steps'] = self.num_target_set_steps
+
     self.writer = SummaryWriter()
     self.current_iter = 0
 
@@ -383,6 +387,7 @@ class CLSFewShotClassifier(nn.Module):
     self.ltm_state_dict = self.model.ltm.get_state_dict()
 
     self.ltm_scheduler.step()
+    self.zero_grad()
 
     return losses, None
 

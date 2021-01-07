@@ -19,18 +19,22 @@ class VGG(MemoryInterface):
     """Build Visual Component as long-term memory module."""
     self.predictor_idx = 0
 
-    self.num_support_sets = 4
-    self.num_support_set_steps = 5
-    self.num_target_set_steps = 1
+    self.num_support_sets = self.config['num_support_sets']
+    self.num_support_set_steps = self.config['num_support_set_steps']
+    self.num_target_set_steps = self.config['num_target_set_steps']
 
     model = VGGActivationNormNetwork(input_shape=self.input_shape,
                                      num_output_classes=self.config['classifier']['output_units'],
-                                     num_stages=4, use_channel_wise_attention=True,
-                                     num_filters=48,
+                                     num_stages=self.config['num_stages'],
+                                     use_channel_wise_attention=self.config['use_channel_wise_attention'],
+                                     num_filters=self.config['num_filters'],
                                      num_support_set_steps=2 * self.num_support_sets * self.num_support_set_steps,
                                      num_target_set_steps=self.num_target_set_steps + 1).to(self.device)
 
-    model_optimizer = optim.Adam(model.parameters(), lr=self.config['meta_learning_rate'])
+    model_optimizer = optim.AdamW(model.parameters(),
+                                  lr=self.config['meta_learning_rate'],
+                                  weight_decay=self.config['weight_decay'],
+                                  amsgrad=False)
 
     self.add_module(self.local_key, model)
     self.add_optimizer(self.local_key, model_optimizer)
