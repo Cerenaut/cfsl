@@ -41,6 +41,7 @@ class MatchingNetworkFewShotClassifier(nn.Module):
 
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
+            
             if torch.cuda.device_count() > 1:
                 self.classifier = nn.DataParallel(self.classifier)
 
@@ -106,7 +107,7 @@ class MatchingNetworkFewShotClassifier(nn.Module):
         output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
             self.num_classes_per_set * self.num_support_sets
 
-        print('output units =', output_units)
+        # print('output units =', output_units)
 
         y_support_set_one_hot = int_to_one_hot(y_support_set)
 
@@ -119,8 +120,8 @@ class MatchingNetworkFewShotClassifier(nn.Module):
         y_support_set = y_support_set.view(size=(self.batch_size, -1))
         y_target_set = y_target_set.view(self.batch_size, -1)
 
-        print('data shape =', x_support_set.shape, x_target_set.shape, y_support_set.shape, y_target_set.shape)
-        print(y_support_set)
+        # print('data shape =', x_support_set.shape, x_target_set.shape, y_support_set.shape, y_target_set.shape)
+        # print(y_support_set)
         count = 0
         for x_support_set_task, y_support_set_task in zip(x_support_set,
                                                           y_support_set):  # produce embeddings for support set images
@@ -134,20 +135,20 @@ class MatchingNetworkFewShotClassifier(nn.Module):
 
             counter_dict = defaultdict(lambda: 0)
 
-            print(support_set_cnn_embed.shape)
+            # print(support_set_cnn_embed.shape)
             for x, y in zip(support_set_cnn_embed, y_support_set_task):
                 counter_dict[y % output_units] += 1
-                print(y % output_units, counter_dict[y % output_units] - 1, x.shape, x.mean())
+                # print(y % output_units, counter_dict[y % output_units] - 1, x.shape, x.mean())
                 per_class_embeddings[y % output_units][counter_dict[y % output_units] - 1] = x
-            print(per_class_embeddings.shape)
+            # print(per_class_embeddings.shape)
             per_class_embeddings = per_class_embeddings.mean(1)
             g_encoded_images.append(per_class_embeddings)
 
         f_encoded_image, _ = self.classifier.forward(x=x_target_set.view(-1, h, w, c))
         f_encoded_image = f_encoded_image.view(self.batch_size, -1, f_encoded_image.shape[-1])
-        print('f_encoded_image', f_encoded_image.shape)
+        # print('f_encoded_image', f_encoded_image.shape)
         g_encoded_images = torch.stack(g_encoded_images, dim=0)
-        print('g_encoded', g_encoded_images.shape)
+        # print('g_encoded', g_encoded_images.shape)
 
         preds, similarities = calculate_cosine_distance(support_set_embeddings=g_encoded_images,
                                                         support_set_labels=y_support_set_one_hot.float(),

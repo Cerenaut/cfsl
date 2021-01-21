@@ -112,8 +112,8 @@ class VGGMAMLFewShotClassifier(MAMLFewShotClassifier):
         num_target_samples = x_target_set.shape[0]
         num_support_samples = x_support_set.shape[0]
 
-        output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            self.num_classes_per_set * self.num_support_sets
+        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         self.current_iter = 0
 
@@ -163,14 +163,13 @@ class VGGMAMLFewShotClassifier(MAMLFewShotClassifier):
         self.device = torch.device('cpu')
 
         if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
 
             if torch.cuda.device_count() > 1:
                 self.to(self.device)
                 self.classifier = nn.DataParallel(module=self.classifier)
             else:
                 self.to(self.device)
-
-            self.device = torch.cuda.current_device()
 
     def switch_opt_params(self, exclude_list):
         print("current trainable params")
@@ -295,17 +294,19 @@ class VGGMAMLFewShotClassifier(MAMLFewShotClassifier):
             target_set_per_step_loss = []
             importance_weights = self.get_per_step_loss_importance_vector(current_epoch=self.current_epoch)
             step_idx = 0
+
+            names_weights_copy = self.get_inner_loop_parameter_dict(self.classifier.named_parameters())
+            num_devices = torch.cuda.device_count() if torch.cuda.is_available() else 1
+
+            names_weights_copy = {
+                name.replace('module.', ''): value.unsqueeze(0).repeat(
+                    [num_devices] + [1 for i in range(len(value.shape))]) for
+                name, value in names_weights_copy.items()}
+
             for sub_task_id, (x_support_set_sub_task, y_support_set_sub_task) in \
                     enumerate(zip(x_support_set_task,
                                   y_support_set_task)):
 
-                names_weights_copy = self.get_inner_loop_parameter_dict(self.classifier.named_parameters())
-                num_devices = torch.cuda.device_count() if torch.cuda.is_available() else 1
-
-                names_weights_copy = {
-                name.replace('module.', ''): value.unsqueeze(0).repeat(
-                    [num_devices] + [1 for i in range(len(value.shape))]) for
-                name, value in names_weights_copy.items()}
                 # in the future try to adapt the features using a relational component
                 x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
                 y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)

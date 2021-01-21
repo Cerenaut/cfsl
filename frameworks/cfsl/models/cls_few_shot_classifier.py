@@ -18,7 +18,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 from cls_module.cls import CLS
-
 from utils.generic import set_torch_seed, calculate_cosine_distance
 
 matplotlib.use('Agg')
@@ -32,7 +31,7 @@ class CLSFewShotClassifier(nn.Module):
     Initializes a CLS few shot learning system
     :param im_shape: The images input size, in batch, c, h, w shape
     :param device: The device to use to use the model on.
-    :param args: A namedtuple of arguments specifying various hyperparameters.
+    :param args: A named tuple of arguments specifying various hyperparameters.
     """
     super(CLSFewShotClassifier, self).__init__()
 
@@ -65,8 +64,6 @@ class CLSFewShotClassifier(nn.Module):
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
 
     self.ltm_state_dict = None
-    self.ltm_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=self.model.ltm.vgg_optimizer, T_max=self.total_epochs,
-                                                              eta_min=self.cls_config['ltm']['min_learning_rate'])
 
     # Determine the device to use (CPU, GPU, multi-GPU)
     self.device = torch.device('cpu')
@@ -108,7 +105,6 @@ class CLSFewShotClassifier(nn.Module):
       else:
         if param.requires_grad:
           yield (name, param)
-
 
   def get_replay_batch(self, replay_buffer, x_support, y_support, k=None, interleave=True):
     """Build an interleaved batch with current support set and random samples from the replay buffer."""

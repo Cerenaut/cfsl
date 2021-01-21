@@ -4,10 +4,10 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 
-from cls_module import utils
 
 from cls_module.memory.interface import MemoryInterface
-from meta_neural_network_architectures import VGGActivationNormNetwork
+from .meta_neural_network_architectures import VGGActivationNormNetwork
+
 
 class VGG(MemoryInterface):
   """An implementation of a long-term memory module using sparse convolutional autoencoder."""
@@ -53,13 +53,14 @@ class VGG(MemoryInterface):
         'optimizer_state_dict': self.vgg_optimizer.state_dict(),
     }
 
-  def load_state_dict(self, state_dict):
+  def load_state_dict(self, state_dict):  # pylint: disable=arguments-differ
     if state_dict is None:
       state_dict = self.get_state_dict()
     self.vgg.load_state_dict(state_dict['model_state_dict'])
     self.vgg_optimizer.load_state_dict(state_dict['optimizer_state_dict'])
 
   def update_predictor(self, idx):
+    """Select the predictor head, and adjust its trainability."""
     predictor_name = 'layer_dict.linear_'
 
     if idx == self.predictor_idx:
@@ -84,7 +85,7 @@ class VGG(MemoryInterface):
     if self.vgg.training:
       self.vgg_optimizer.zero_grad()
 
-    preds, encoding = self.vgg.forward(x=inputs, num_step=0, return_features=True)
+    preds, encoding = self.vgg.forward(x=inputs, num_step=0, training=self.training, return_features=True)
 
     loss = F.cross_entropy(input=preds[self.predictor_idx], target=labels)
 

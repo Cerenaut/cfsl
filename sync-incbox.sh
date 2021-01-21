@@ -7,7 +7,7 @@
 DEST_DIR='~/agief-remote-run/cfsl'
 
 # sync this folder
-cmd="rsync --chmod=ug=rwX,o=rX --perms -av ./ incubator@cfsl-playground.us-central1-a.tensorflow-compute-1:$DEST_DIR --exclude='.git/' --filter=':- .gitignore'"
+cmd="rsync --chmod=ug=rwX,o=rX --perms -av ./ incbox:$DEST_DIR --exclude='.git/' --filter=':- .gitignore'"
 echo $cmd
 eval $cmd
 status=$?

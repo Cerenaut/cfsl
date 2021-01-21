@@ -114,10 +114,7 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         num_support_samples = x_support_set.shape[0]
 
         output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-          (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
-
-        output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            self.num_classes_per_set * self.num_support_sets
+            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
 
         print('output units =', output_units)
 
@@ -212,14 +209,13 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
 
         self.device = torch.device('cpu')
         if torch.cuda.is_available():
+            self.device = torch.cuda.current_device()
 
             if torch.cuda.device_count() > 1:
                 self.to(self.device)
                 self.dense_net_embedding = nn.DataParallel(module=self.dense_net_embedding)
             else:
                 self.to(self.device)
-
-            self.device = torch.cuda.current_device()
 
         self.classifier.to(self.device)
 
@@ -344,22 +340,27 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
             target_set_per_step_loss = []
             importance_weights = self.get_per_step_loss_importance_vector(current_epoch=self.current_epoch)
             step_idx = 0
+
+            names_weights_copy = self.get_inner_loop_parameter_dict(self.classifier.named_parameters(),
+                                                                        exclude_strings=['linear_1'])
+            num_devices = torch.cuda.device_count() if torch.cuda.is_available() else 1
+
+            names_weights_copy = {
+              name.replace('module.', ''): value.unsqueeze(0).repeat(
+                  [num_devices] + [1 for i in range(len(value.shape))]) for
+              name, value in names_weights_copy.items()}
+
+            # print('y_target_set_task =', y_target_set_task)
+
             for sub_task_id, (x_support_set_sub_task, y_support_set_sub_task) in \
                     enumerate(zip(x_support_set_task,
                                   y_support_set_task)):
 
-                names_weights_copy = self.get_inner_loop_parameter_dict(self.classifier.named_parameters(),
-                                                                        exclude_strings=['linear_1'])
-                num_devices = torch.cuda.device_count() if torch.cuda.is_available() else 1
-
-                names_weights_copy = {
-                name.replace('module.', ''): value.unsqueeze(0).repeat(
-                    [num_devices] + [1 for i in range(len(value.shape))]) for
-                name, value in names_weights_copy.items()}
-
                 # in the future try to adapt the features using a relational component
                 x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
                 y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
+
+                # print('y_support_set_sub_task =', y_support_set_sub_task)
 
                 if self.num_target_set_steps > 0 and 'task_embedding' in self.conditional_information:
                     image_embedding = self.dense_net_embedding.forward(
@@ -501,8 +502,8 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         state = torch.load(filepath, map_location='cpu')
         net = dict(state['network'])
 
-        net['classifier.layer_dict.linear_0.weights'] = torch.cat((net['classifier.layer_dict.linear_0.weights'], net['classifier.layer_dict.linear_0.weights']))
-        net['classifier.layer_dict.linear_0.bias'] = torch.cat((net['classifier.layer_dict.linear_0.bias'], net['classifier.layer_dict.linear_0.bias']))
+        # net['classifier.layer_dict.linear_0.weights'] = torch.cat((net['classifier.layer_dict.linear_0.weights'], net['classifier.layer_dict.linear_0.weights']))
+        # net['classifier.layer_dict.linear_0.bias'] = torch.cat((net['classifier.layer_dict.linear_0.bias'], net['classifier.layer_dict.linear_0.bias']))
 
         state['network'] = OrderedDict(net)
         state_dict_loaded = state['network']

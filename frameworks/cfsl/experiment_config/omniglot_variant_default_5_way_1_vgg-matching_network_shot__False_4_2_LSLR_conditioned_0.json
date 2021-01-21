@@ -31,6 +31,8 @@
   "learnable_betas": false,
   "num_support_set_steps": 5,
   "num_target_set_steps": 0,
+  "top_n_models": 5,
+  "validate": true,
 
 
   "max_pooling": true,
