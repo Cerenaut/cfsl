@@ -3,7 +3,7 @@
 import os
 import random
 
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, deque
 
 import numpy as np
 
@@ -59,6 +59,7 @@ class CLSFewShotClassifier(nn.Module):
 
     self.writer = SummaryWriter()
     self.current_iter = 0
+    self.current_eval_iter = 0
 
     # Build the CLS module
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
@@ -115,8 +116,17 @@ class CLSFewShotClassifier(nn.Module):
     y_replay_set = [y_support]
 
     if interleave and (replay_buffer['inputs'] and replay_buffer['labels']):
-      replay_buffer_inputs_flat = torch.cat(replay_buffer['inputs'])
-      replay_buffer_labels_flat = torch.cat(replay_buffer['labels'])
+
+      # get tuples from the replay_buffer deques
+      replay_buffer_inputs = []
+      replay_buffer_labels = []
+      for item in replay_buffer['inputs']:
+        replay_buffer_inputs.append(item)
+      for item in replay_buffer['labels']:
+        replay_buffer_labels.append(item)
+
+      replay_buffer_inputs_flat = torch.cat(replay_buffer_inputs)
+      replay_buffer_labels_flat = torch.cat(replay_buffer_labels)
 
       replay_buffer_indices = list(range(replay_buffer_inputs_flat.size(0)))
 
@@ -139,11 +149,14 @@ class CLSFewShotClassifier(nn.Module):
 
     x_support_set, x_target_set, y_support_set, y_target_set, *_ = data_batch
 
+    num_consolidation_steps = self.num_support_set_steps
     num_study_steps = self.cls_config['study_steps']
-    num_consolidation_steps = self.cls_config['consolidation_steps']
-    replay_method = 'recall'  # recall, or groundtruth
-    replay_interleave = True
-    replay_num_samples = 5
+    replay_method = self.cls_config['replay_method']  # 'recall'  # recall, or groundtruth
+    replay_interleave = self.cls_config['replay_interleave']
+    replay_num_samples = self.cls_config['replay_num_samples']  # 5
+    reset_stm_per_run = self.cls_config['reset_stm_per_run']
+    replay_buffer_max_len = self.cls_config['replay_buffer_max_length']  # set max size of the circular replay_buffer
+    per_task_preds = []
 
     per_task_preds = []
 
@@ -155,9 +168,8 @@ class CLSFewShotClassifier(nn.Module):
     for _, (x_support_set_task, y_support_set_task, x_target_set_task, y_target_set_task) in \
             enumerate(zip(x_support_set, y_support_set, x_target_set, y_target_set)):
 
+      # Reset STM at the start of the task
       self.model.reset(['stm'])
-      self.model.ltm.load_state_dict(self.ltm_state_dict)  # Special reset for LTM-VGG
-
       c, h, w = x_target_set_task.shape[-3:]
       x_target_set_task = x_target_set_task.view(-1, c, h, w).to(self.device)
       y_target_set_task = y_target_set_task.view(-1).to(self.device)
@@ -165,15 +177,16 @@ class CLSFewShotClassifier(nn.Module):
       step_idx = 0
 
       replay_buffer = {
-          'inputs': [],
-          'labels': []
+          'inputs': deque([], replay_buffer_max_len),
+          'labels': deque([], replay_buffer_max_len)
       }
 
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
             enumerate(zip(x_support_set_task, y_support_set_task)):
 
-        # TODO: Continous STM without forgetting
-        self.model.reset(['stm'])
+        # Optional: Reset STM every support set
+        if reset_stm_per_run:
+          self.model.reset(['stm'])
 
         # in the future try to adapt the features using a relational component
         x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
@@ -189,7 +202,12 @@ class CLSFewShotClassifier(nn.Module):
           stm_support_input = pre_ltm_support_outputs['memory']['output'].detach()
 
         self.model.stm.train()
-        for _ in range(num_study_steps):
+        for step in range(num_study_steps):
+          self.model.stm.set_pc_buffer_mode('none')
+
+          if step == 0:
+            self.model.stm.set_pc_buffer_mode('append')
+
           self.model.stm(inputs=stm_support_input, targets=x_support_set_sub_task, labels=y_support_set_sub_task)
           step_idx += 1
 
@@ -231,17 +249,26 @@ class CLSFewShotClassifier(nn.Module):
         _, post_ltm_support_outputs = self.model.ltm(inputs=x_support_set_task,
                                                      targets=None,
                                                      labels=y_support_set_task)
-        step_idx += 1
+
+        support_ltm_encodings = post_ltm_support_outputs['memory']['output']
+
+        # _, stm_support_outputs = self.model.stm(inputs=support_ltm_encodings,
+        #                                         targets=x_support_set_task,
+        #                                         labels=y_support_set_task)
 
         target_losses, target_outputs = self.model.ltm(inputs=x_target_set_task,
                                                        targets=None,
                                                        labels=y_target_set_task)
-        step_idx += 1
+
+        target_ltm_encodings = target_outputs['memory']['output']
+
+        # _, stm_target_outputs = self.model.stm(inputs=target_ltm_encodings,
+        #                                        targets=x_target_set_task,
+        #                                        labels=y_target_set_task)
 
       # Compute Matching Accuracy
       # ---------------------------------------------------------------------------------------------------------------
       per_class_embeddings = []
-      support_ltm_encodings = post_ltm_support_outputs['memory']['output']
 
       for i in range(self.output_units):
         temp_class_encodings = torch.zeros((self.num_samples_per_support_class * self.num_classes_per_set,
@@ -259,7 +286,6 @@ class CLSFewShotClassifier(nn.Module):
                                                        per_class_embeddings.shape[0],
                                                        np.prod(per_class_embeddings.shape[1:]))
 
-      target_ltm_encodings = target_outputs['memory']['output']
       target_ltm_encodings = target_ltm_encodings.view(self.batch_size,
                                                        target_ltm_encodings.shape[0],
                                                        np.prod(target_ltm_encodings.shape[1:]))
@@ -302,6 +328,8 @@ class CLSFewShotClassifier(nn.Module):
                                                total_accuracies=per_task_target_ltm_accuracy,
                                                loss_metrics_dict=loss_metric_dict)
 
+    self.current_eval_iter += 1
+
     return losses, per_task_preds
 
   def trainable_parameters(self, exclude_list):
@@ -322,19 +350,6 @@ class CLSFewShotClassifier(nn.Module):
         if param.requires_grad:
           yield name, param
 
-  def train_forward_prop(self, data_batch, epoch, current_iter):
-    """
-    Runs an outer loop forward prop using the meta-model and base-model.
-    :param data_batch: A data batch containing the support set and the target set input, output pairs.
-    :param epoch: The index of the currrent epoch.
-    :return: A dictionary of losses for the current step.
-    """
-    del epoch, current_iter
-
-    losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=True)
-
-    return losses, per_task_preds
-
   def evaluation_forward_prop(self, data_batch, epoch):
     """
     Runs an outer loop evaluation forward prop using the meta-model and base-model.
@@ -344,9 +359,16 @@ class CLSFewShotClassifier(nn.Module):
     """
     del epoch
 
+    self.reset_ltm()
+
     losses, per_task_preds = self.forward(data_batch=data_batch, training_phase=False)
 
+    self.reset_ltm()
+
     return losses, per_task_preds
+
+  def reset_ltm(self):
+    self.model.ltm.load_state_dict(self.ltm_state_dict)
 
   def run_train_iter(self, data_batch, epoch, current_iter):
     """
@@ -443,6 +465,7 @@ class CLSFewShotClassifier(nn.Module):
     return state
 
   def get_across_task_loss_metrics(self, total_losses, total_accuracies, loss_metrics_dict):
+    """Compute average metrics (e.g. loss, accuracy, etc.) across tasks."""
     losses = dict()
 
     losses['loss'] = torch.mean(torch.stack(total_losses), dim=(0,))

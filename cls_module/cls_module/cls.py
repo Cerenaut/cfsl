@@ -12,7 +12,7 @@ import torchvision
 import numpy as np
 
 import cls_module
-from cls_module.utils import square_image_shape_from_1d
+from cerenaut_pt_core.utils import square_image_shape_from_1d
 from .memory import ltm, stm
 
 
@@ -49,17 +49,30 @@ class CLS(nn.Module):
   def build(self):
     """Build and initialize the long-term and short-term memory modules."""
     ltm_config = self.config[self.ltm_key]
-    # ltm_class = ltm.VisualComponent
-    ltm_class = ltm.VGG
+    ltm_type = self.config['ltm_type']
+
+    if ltm_type == 'vc':
+      ltm_class = ltm.VisualComponent
+    elif ltm_type == 'vgg':
+      ltm_class = ltm.VGG
+    else:
+      raise NotImplementedError('LTM type not supported: ' + ltm_type)
+
     ltm_ = ltm_class(config=ltm_config,
                      input_shape=self.input_shape,
                      target_shape=None,
                      device=self.device,
                      writer=self.writer)
 
+    stm_type = self.config['stm_type']
     stm_config = self.config[self.stm_key]
-    stm_class = stm.AHA
-    # stm_class = stm.FastNN
+
+    if stm_type == 'fastnn':
+      stm_class = stm.FastNN
+    elif stm_type == 'aha':
+      stm_class = stm.AHA
+    else:
+      raise NotImplementedError('STM type not supported: ' + stm_type)
 
     stm_ = stm_class(config=stm_config,
                      input_shape=ltm_.output_shape,

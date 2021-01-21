@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from cls_module.utils import activation_fn, initialize_parameters
+from cerenaut_pt_core.utils import activation_fn, initialize_parameters
 
 
 class LabelLearner(nn.Module):

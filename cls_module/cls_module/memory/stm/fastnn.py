@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from cls_module.memory.interface import MemoryInterface
-from cls_module.components.simple_autoencoder import SimpleAutoencoder
+from cerenaut_pt_core.components.simple_autoencoder import SimpleAutoencoder
 
 
 class FastNN(MemoryInterface):

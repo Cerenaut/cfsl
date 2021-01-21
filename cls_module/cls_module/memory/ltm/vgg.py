@@ -32,7 +32,7 @@ class VGG(MemoryInterface):
                                      num_target_set_steps=self.num_target_set_steps + 1).to(self.device)
 
     model_optimizer = optim.AdamW(model.parameters(),
-                                  lr=self.config['meta_learning_rate'],
+                                  lr=self.config['learning_rate'],
                                   weight_decay=self.config['weight_decay'],
                                   amsgrad=False)
 

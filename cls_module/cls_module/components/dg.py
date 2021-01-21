@@ -5,7 +5,7 @@ import torch.nn as nn
 
 import numpy as np
 
-import cls_module.utils as utils
+import cerenaut_pt_core.utils as utils
 
 
 class DG(nn.Module):
@@ -120,7 +120,7 @@ class DG(nn.Module):
     Return number of bits that overlap """
 
     num_samples = encoding.shape[0]
-    batch_overlap = torch.zeros(num_samples)
+    batch_overlap = torch.zeros(num_samples).to(encoding.device)
 
     for i in range(num_samples):
       a = encoding[i]
@@ -153,6 +153,6 @@ class DG(nn.Module):
     overlap = self.compute_overlap(top_k_mask)
     overlap_sum = overlap.sum().item()
 
-    assert overlap_sum == 0.0, 'Found overlap between samples in batch'
+    # assert overlap_sum == 0.0, 'Found overlap between samples in batch'
 
     return top_k_mask.detach()
