@@ -18,6 +18,9 @@ def set_torch_seed(seed):
 def calculate_cosine_distance(support_set_embeddings, support_set_labels, target_set_embeddings):
   eps = 1e-10
 
+  # Ensure both embeddings are on same device
+  support_set_embeddings = support_set_embeddings.to(target_set_embeddings.device)
+
   per_task_similarities = []
   for support_set_embedding_task, target_set_embedding_task in zip(support_set_embeddings, target_set_embeddings):
     target_set_embedding_task = target_set_embedding_task  # sb, f

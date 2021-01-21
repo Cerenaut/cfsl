@@ -9,9 +9,13 @@ from utils.dataset_tools import load_datapaths, get_label_from_index
 
 PARENT_DIR = 'runs'
 
-def save_to_json(filename, dict_to_store):
+
+def save_to_json(filename, dict_to_store, indent=None):
     with open(os.path.abspath(filename), 'w') as f:
-        json.dump(dict_to_store, fp=f)
+        if indent:
+            json.dump(dict_to_store, fp=f, indent=indent)
+        else:
+            json.dump(dict_to_store, fp=f)
 
 
 def load_from_json(filename):
@@ -19,6 +23,12 @@ def load_from_json(filename):
         load_dict = json.load(fp=f)
 
     return load_dict
+
+
+def save_config(experiment_name, args, filename="config.json"):
+    config_filename = "{}/{}".format(experiment_name, filename)
+    save_to_json(config_filename, args, indent=2)
+    return config_filename
 
 
 def save_statistics(experiment_name, line_to_add, filename="summary_statistics.csv", create=False):
@@ -54,10 +64,13 @@ def load_statistics(experiment_name, filename="summary_statistics.csv"):
 
 
 def build_experiment_folder(experiment_name):
+
+    now = datetime.datetime.now()
+
     experiment_path = os.path.abspath(PARENT_DIR)
     experiment_path = os.path.join(experiment_path, experiment_name)
     saved_models_filepath = "{}/{}".format(experiment_path, "saved_models")
-    logs_filepath = "{}/{}".format(experiment_path, "logs")
+    logs_filepath = "{}/{}_{}".format(experiment_path, "logs", now.strftime("%Y%m%d-%H%M%S"))
     samples_filepath = "{}/{}".format(experiment_path, "visual_outputs")
 
     if not os.path.exists(experiment_path):
@@ -142,5 +155,4 @@ def update_json_experiment_log_epoch_stats(epoch_stats, experiment_log_dir, log_
     with open(summary_filename, 'w') as f:
         json.dump(summary_dict, fp=f)
     return summary_filename
-
 

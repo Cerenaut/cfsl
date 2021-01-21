@@ -3,8 +3,10 @@ import time
 
 import numpy as np
 import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
-from utils.storage import build_experiment_folder, save_statistics, save_to_json
+from utils.storage import build_experiment_folder, save_statistics, save_to_json, save_config
+
 
 class ExperimentBuilder(object):
     def __init__(self, data_dict, model, experiment_name, continue_from_epoch, max_models_to_save,
@@ -33,6 +35,7 @@ class ExperimentBuilder(object):
         self.max_models_to_save = max_models_to_save
         self.create_summary_csv = False
         self.evaluate_on_test_set_only = evaluate_on_test_set_only
+        self.writer = None
 
         for key, value in args.__dict__.items():
             setattr(self, key, value)
@@ -82,6 +85,17 @@ class ExperimentBuilder(object):
         self.epochs_done_in_this_run = 0
         print(self.state['current_iter'], int(total_iter_per_epoch * total_epochs))
 
+        # log the config params
+        config_filepath = save_config(self.logs_filepath, args.__dict__, filename="config.json")
+        print("saved config at", config_filepath)
+
+        # set setup Tensorboard
+        self.writer = SummaryWriter(self.logs_filepath)
+
+    def close_writer(self):
+        if self.writer:
+            self.writer.close()
+
     def build_summary_dict(self, total_losses, phase, summary_losses=None):
         """
         Builds/Updates a summary dict directly from the metric dict of the current iteration.
@@ -107,10 +121,15 @@ class ExperimentBuilder(object):
         :return: A summary string ready to be shown to humans.
         """
         output_update = ""
+
         for key, value in zip(list(summary_losses.keys()), list(summary_losses.values())):
             if ("loss" in key or "accuracy" in key or 'opt' in key) and (not "pre" in key and not "post" in key):
                 value = float(value)
                 output_update += "{}: {:.4f}, ".format(key, value)
+
+                self.writer.add_scalar(key, value)
+
+        self.writer.flush()
 
         return output_update
 
@@ -281,7 +300,20 @@ class ExperimentBuilder(object):
 
             test_losses = [dict() for i in range(top_n_models)]
         else:
-            top_n_idx = [i for i in range(top_n_models)]
+            # Build a list of epochs, and reverses it so we can look up the
+            # latest N model checkpoints.
+            val_idx = list(range(self.total_epochs))  # [0, 1, ..., 8, 9] if total_epochs = 10
+            val_idx.sort(reverse=True)  # [9, 8, 7, ..., 0]
+
+            # Previously, CFSL simply picked N from a list of [0...N]
+            # This resulted it in it picking the earliest checkpoints
+            # top_n_idx = [i for i in range(top_n_models)]
+
+            # Instead, we use the above `val_idx` list to pick the N most recent models
+            top_n_idx = val_idx[:top_n_models]
+
+            print(top_n_idx)
+
             per_model_per_batch_preds = [[] for i in range(top_n_models)]
             per_model_per_batch_targets = [[] for i in range(top_n_models)]
             test_losses = [dict() for i in range(top_n_models)]
@@ -305,15 +337,37 @@ class ExperimentBuilder(object):
                                                                                model_idx=idx,
                                                                                per_model_per_batch_preds=per_model_per_batch_preds,
                                                                                pbar_test=pbar_test)
-        per_batch_preds = np.mean(per_model_per_batch_preds, axis=0)
 
-        per_batch_max = np.argmax(per_batch_preds, axis=2)
+        # per_model_per_batch_preds shape: [Model, Tasks, Sample, Classes]
+        per_batch_preds = np.mean(per_model_per_batch_preds, axis=0)    # shape: [Tasks, Samples, Classes]
+        per_batch_max = np.argmax(per_batch_preds, axis=2)              # shape: [Tasks, Samples]
         per_batch_targets = np.array(per_model_per_batch_targets[0]).reshape(per_batch_max.shape)
 
         accuracy = np.mean(np.equal(per_batch_targets, per_batch_max))
         accuracy_std = np.std(np.equal(per_batch_targets, per_batch_max))
 
-        test_losses = {"test_accuracy_mean": accuracy, "test_accuracy_std": accuracy_std}
+        test_losses = {"test_accuracy_mean_avmodel": accuracy, "test_accuracy_std_avmodel": accuracy_std}
+
+        new_metrics = True
+        if new_metrics:
+            per_model_per_batch_max = np.argmax(per_model_per_batch_preds, axis=3)  # shape: [Model, Tasks, Samples]
+
+            correct = np.equal(per_batch_targets, per_model_per_batch_max)  # [Model, Tasks, Samples]
+            correct = correct.reshape([correct.shape[0], correct.shape[1]*correct.shape[2]])
+            per_model_accuracy = np.mean(correct, axis=1)                   # shape: [Model, Accuracy]
+            print("per_model_accuracy: ", per_model_accuracy.shape)
+
+            accuracy_mean = np.mean(per_model_accuracy)
+            accuracy_std = np.std(per_model_accuracy)
+
+            test_losses.update({"test_accuracy_mean": accuracy_mean, "test_accuracy_std": accuracy_std})
+
+            for key, val in test_losses.items():
+                self.writer.add_scalar("test_accuracies/" + key, val)
+            # self.writer.add_scalars("test_accuracies", test_losses)
+            self.writer.add_histogram("per_model_accuracy", per_model_accuracy)
+            self.writer.flush()
+            print("saved histograms for tensorboard")
 
         _ = save_statistics(self.logs_filepath,
                             list(test_losses.keys()),
@@ -330,6 +384,7 @@ class ExperimentBuilder(object):
         Runs a full training experiment with evaluations of the model on the val set at every epoch. Furthermore,
         will return the test set evaluation results on the best performing validation model.
         """
+
         with tqdm.tqdm(initial=self.state['current_iter'],
                        total=int(self.total_iter_per_epoch * self.total_epochs)) as pbar_train:
 
@@ -350,7 +405,7 @@ class ExperimentBuilder(object):
                         current_iter=self.state['current_iter'],
                         sample_idx=self.state['current_iter'])
 
-                    validate = False
+                    validate = self.validate
                     better_val_model = False
                     if self.state['current_iter'] % self.total_iter_per_epoch == 0:
 
@@ -396,4 +451,4 @@ class ExperimentBuilder(object):
                         save_to_json(filename=os.path.join(self.logs_filepath, "summary_statistics.json"),
                                      dict_to_store=self.state['per_epoch_statistics'])
 
-            self.evaluate_test_set_using_the_best_models(top_n_models=5)
+            self.evaluate_test_set_using_the_best_models(top_n_models=self.top_n_models)

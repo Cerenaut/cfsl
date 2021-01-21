@@ -31,6 +31,8 @@
   "num_support_sets": 4,
   "class_change_interval": 2,
   "overwrite_classes_in_each_task": false,
+  "validate": false,
+  "top_n_models": 5,
 
   "cls_config": {
     "pretrain_epochs": 5,
