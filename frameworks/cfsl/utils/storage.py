@@ -156,4 +156,3 @@ def update_json_experiment_log_epoch_stats(epoch_stats, experiment_log_dir, log_
         json.dump(summary_dict, fp=f)
     return summary_filename
 
-

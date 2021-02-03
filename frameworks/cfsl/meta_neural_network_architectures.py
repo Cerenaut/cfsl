@@ -478,6 +478,8 @@ class VGGActivationNormNetwork(nn.Module):
 
             out = F.max_pool2d(input=out, kernel_size=2, stride=2, padding=0)
 
+        self.features_shape = out.shape
+
         out = out.view((out.shape[0], -1))
 
         if type(self.num_output_classes) == list:

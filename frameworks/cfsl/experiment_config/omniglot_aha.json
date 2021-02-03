@@ -14,16 +14,16 @@
   "sets_are_pre_split": false,
   "train_val_test_split": [0.73982737361, 0.13008631319, 0.13008631319],
   "load_into_memory": false,
-  "classifier_type": "cls",
+  "classifier_type": "vgg-aha",
 
-  "total_epochs": 10,
+  "total_epochs": 50,
   "total_iter_per_epoch": 500, "continue_from_epoch": "latest",
   "evaluate_on_test_set_only": false,
   "num_evaluation_tasks": 600,
   "num_support_set_steps": 120,
   "num_target_set_steps": 0,
   "top_n_models": 5,
-  "validate": true,
+  "validate": false,
 
   "number_of_training_steps_per_iter": 5,
   "number_of_evaluation_steps_per_iter": 0,
@@ -38,14 +38,14 @@
     "study_steps": 60,
 
     "replay_buffer_max_length": 10,
-    "replay_method": "recall",
+    "replay_method": "groundtruth",
     "replay_interleave": true,
     "replay_num_samples": 5,
     "reset_stm_per_run": true,
 
     "ltm_type": "vgg",
     "stm_type": "aha",
-    
+
     "ltm-vc": {
       "learning_rate": 0.001,
 
@@ -82,6 +82,7 @@
       }
     },
     "ltm": {
+      "min_learning_rate": 0.001,
       "learning_rate": 0.001,
 
       "weight_decay": 0.0001,

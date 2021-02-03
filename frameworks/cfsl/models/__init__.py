@@ -5,3 +5,4 @@ from .maml_few_shot_classifier import MAMLFewShotClassifier
 from .matching_network_few_shot_classifier import MatchingNetworkFewShotClassifier
 from .vgg_maml_few_shot_classifier import VGGMAMLFewShotClassifier
 from .cls_few_shot_classifier import CLSFewShotClassifier
+from .vgg_aha_few_shot_classifier import VGGAHAFewShotClassifier

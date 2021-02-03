@@ -52,12 +52,18 @@ class CLSFewShotClassifier(nn.Module):
     self.cls_config['ltm']['classifier']['output_units'] = [self.output_units, 2000]
     self.cls_config['stm']['classifier']['output_units'] = self.output_units
 
+    self.cls_config['ltm']['num_support_sets'] = self.num_support_sets
+    self.cls_config['ltm']['num_support_set_steps'] = self.num_support_set_steps
+    self.cls_config['ltm']['num_target_set_steps'] = self.num_target_set_steps
+
     self.writer = SummaryWriter()
     self.current_iter = 0
     self.current_eval_iter = 0
 
     # Build the CLS module
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
+    self.ltm_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=self.model.ltm.vgg_optimizer, T_max=self.total_epochs,
+                                                              eta_min=self.cls_config['ltm']['min_learning_rate'])
 
     self.ltm_state_dict = None
 
@@ -150,6 +156,8 @@ class CLSFewShotClassifier(nn.Module):
     replay_buffer_max_len = self.cls_config['replay_buffer_max_length']  # set max size of the circular replay_buffer
     per_task_preds = []
 
+    per_task_preds = []
+
     per_task_target_ltm_loss = []
     per_task_target_ltm_accuracy = []
     per_task_support_ltm_accuracy = []
@@ -160,7 +168,6 @@ class CLSFewShotClassifier(nn.Module):
 
       # Reset STM at the start of the task
       self.model.reset(['stm'])
-
       c, h, w = x_target_set_task.shape[-3:]
       x_target_set_task = x_target_set_task.view(-1, c, h, w).to(self.device)
       y_target_set_task = y_target_set_task.view(-1).to(self.device)
@@ -392,11 +399,15 @@ class CLSFewShotClassifier(nn.Module):
     losses = dict()
     losses['loss'] = model_losses['ltm']['memory']['loss']
     losses['accuracy'] = accuracy
+    losses['learning_rate'] = self.ltm_scheduler.get_last_lr()[0]
 
     self.current_iter += 1
 
     # Update the LTM state dict
     self.ltm_state_dict = self.model.ltm.get_state_dict()
+
+    self.ltm_scheduler.step()
+    self.zero_grad()
 
     return losses, None
 
