@@ -62,6 +62,8 @@ class CLSFewShotClassifier(nn.Module):
 
     # Build the CLS module
     self.model = CLS(input_shape=self.input_shape, config=self.cls_config, writer=self.writer)
+    self.ltm_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer=self.model.ltm.vgg_optimizer, T_max=self.total_epochs,
+                                                              eta_min=self.cls_config['ltm']['min_learning_rate'])
 
     self.ltm_state_dict = None
 

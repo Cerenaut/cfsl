@@ -26,6 +26,8 @@ def main():
       model = MatchingNetworkFewShotClassifier(**args.__dict__)
   elif args.classifier_type == 'cls':
       model = CLSFewShotClassifier(**args.__dict__)
+  elif args.classifier_type == 'vgg-aha':
+    model = VGGAHAFewShotClassifier(**args.__dict__)
   else:
       raise NotImplementedError
 
@@ -86,7 +88,6 @@ def main():
                         overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
                         class_change_interval=args.class_change_interval)
 
-<<<<<<< HEAD
   train_data = FewShotLearningDatasetParallel(**train_setup_dict)
 
   val_data = FewShotLearningDatasetParallel(**val_setup_dict)
@@ -111,61 +112,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-=======
-val_setup_dict = dict(dataset_name=args.dataset_name,
-                      indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
-                      train_val_test_split=args.train_val_test_split,
-                      labels_as_int=args.labels_as_int, transforms=transforms,
-                      num_classes_per_set=args.num_classes_per_set,
-                      num_samples_per_support_class=args.num_samples_per_support_class,
-                      num_samples_per_target_class=args.num_samples_per_target_class,
-                      seed=args.seed,
-                      sets_are_pre_split=args.sets_are_pre_split,
-                      load_into_memory=args.load_into_memory, set_name='val',
-                      num_tasks_per_epoch=args.num_evaluation_tasks,
-                      num_channels=args.image_channels,
-                      num_support_sets=args.num_support_sets,
-                      overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
-                      class_change_interval=args.class_change_interval)
-
-test_setup_dict = dict(dataset_name=args.dataset_name,
-                       indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
-                       train_val_test_split=args.train_val_test_split,
-                       labels_as_int=args.labels_as_int, transforms=transforms,
-                       num_classes_per_set=args.num_classes_per_set,
-                       num_samples_per_support_class=args.num_samples_per_support_class,
-                       num_samples_per_target_class=args.num_samples_per_target_class,
-                       seed=args.seed,
-                       sets_are_pre_split=args.sets_are_pre_split,
-                       load_into_memory=args.load_into_memory, set_name='test',
-                       num_tasks_per_epoch=args.num_evaluation_tasks,
-                       num_channels=args.image_channels,
-                       num_support_sets=args.num_support_sets,
-                       overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
-                       class_change_interval=args.class_change_interval)
-
-train_data = FewShotLearningDatasetParallel(**train_setup_dict)
-
-val_data = FewShotLearningDatasetParallel(**val_setup_dict)
-
-test_data = FewShotLearningDatasetParallel(**test_setup_dict)
-
-data_dict = {'train': DataLoader(train_data, batch_size=args.batch_size,
-                                 num_workers=args.num_dataprovider_workers),
-             'val': DataLoader(val_data, batch_size=args.batch_size,
-                               num_workers=args.num_dataprovider_workers),
-             'test': DataLoader(test_data, batch_size=args.batch_size,
-                                num_workers=args.num_dataprovider_workers)}
-
-maml_system = ExperimentBuilder(model=model, data_dict=data_dict, experiment_name=args.experiment_name,
-                                continue_from_epoch=args.continue_from_epoch,
-                                total_iter_per_epoch=args.total_iter_per_epoch,
-                                num_evaluation_tasks=args.num_evaluation_tasks, total_epochs=args.total_epochs,
-                                batch_size=args.batch_size, max_models_to_save=args.max_models_to_save,
-                                evaluate_on_test_set_only=args.evaluate_on_test_set_only,
-                                args=args)
-
-maml_system.run_experiment()
-
-maml_system.close_writer()
->>>>>>> origin/master

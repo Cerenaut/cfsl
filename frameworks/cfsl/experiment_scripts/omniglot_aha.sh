@@ -13,6 +13,6 @@ export CUDA_VISIBLE_DEVICES=$GPU_ID
 # Activate the relevant virtual environment:
 
 python train_continual_learning_few_shot_system.py \
-  --name_of_args_json_file experiment_config/omniglot_aha.json \
+  --name_of_args_json_file experiment_config/omniglot_aha_vgg.json \
   --gpu_to_use $GPU_ID \
   --continue_from_epoch=$CONTINUE_FROM_EPOCH
