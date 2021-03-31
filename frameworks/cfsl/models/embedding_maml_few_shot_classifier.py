@@ -189,7 +189,7 @@ class EmbeddingMAMLFewShotClassifier(MAMLFewShotClassifier):
         if torch.cuda.is_available():
             self.device = torch.cuda.current_device()
 
-              print('GPU count =', torch.cuda.device_count())
+            print('GPU count =', torch.cuda.device_count())
 
             if torch.cuda.device_count() > 1:
                 self.dense_net_embedding = nn.DataParallel(module=self.dense_net_embedding)
