@@ -96,7 +96,7 @@
       }
     },
     "stm": {
-      "ps": {
+      "dg": {
           "inhibition_decay": 0.95,
           "knockout_rate": 0.25,
           "init_scale": 10.0,
@@ -104,10 +104,10 @@
           "sparsity": 10,
           "use_stub": false
       },
-      "pc": {
+      "ca3": {
           "shift_range": false
       },
-      "pr": {
+      "perforant_pr": {
           "learning_rate": 0.01,
           "weight_decay": 0.000025,
   
@@ -143,7 +143,7 @@
           "num_units": 100,
           "input_dropout": 0.0,
           "hidden_dropout": 0.0,
-  
+
           "encoder_nonlinearity": "leaky_relu",
           "decoder_nonlinearity": "leaky_relu",
           "use_bias": true,

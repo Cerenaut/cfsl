@@ -452,10 +452,10 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
 
                 self.memory.train()
                 for step in range(num_study_steps):
-                    self.memory.set_pc_buffer_mode('none')
+                    self.memory.ca3.set_buffer_mode('none')
 
                     if step == 0:
-                      self.memory.set_pc_buffer_mode('append')
+                      self.memory.ca3.set_buffer_mode('append')
 
                     self.memory(inputs=stm_support_input,
                                 targets=x_support_set_sub_task,
@@ -620,7 +620,7 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         :return: The losses of the ran iteration.
         """
         epoch = int(epoch)
-        self.scheduler.step(epoch=epoch)
+
         if self.current_epoch != epoch:
             self.current_epoch = epoch
 
@@ -645,10 +645,11 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         exclude_string = None
 
         self.meta_update(loss=losses['loss'], exclude_string_list=exclude_string)
-        losses['learning_rate'] = self.scheduler.get_lr()[0]
+        losses['learning_rate'] = self.scheduler.get_last_lr()[0]
         self.zero_grad()
 
         self.current_iter += 1
+        self.scheduler.step()
 
         return losses, None
 

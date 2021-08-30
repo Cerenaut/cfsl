@@ -21,7 +21,7 @@
   "output_spatial_dimensionality": 5,
 
   "total_epochs": 15,
-  "total_iter_per_epoch":500, "continue_from_epoch": -2,
+  "total_iter_per_epoch":10, "continue_from_epoch": -2,
   "evaluate_on_test_set_only": false,
   "exclude_param_string": ["none"],
   "num_evaluation_tasks": 600,
@@ -82,7 +82,9 @@
     "reset_stm_per_run": true,
 
     "stm": {
-      "ps": {
+      "hebbian_perforant": false,
+
+      "dg": {
           "inhibition_decay": 0.95,
           "knockout_rate": 0.25,
           "init_scale": 10.0,
@@ -90,10 +92,10 @@
           "sparsity": 10,
           "use_stub": false
       },
-      "pc": {
+      "ca3": {
           "shift_range": false
       },
-      "pr": {
+      "perforant_pr": {
           "learning_rate": 0.01,
           "weight_decay": 0.000025,
 
@@ -135,6 +137,19 @@
           "use_bias": true,
           "norm_inputs": true
       },
+      "pm_ec": {
+        "learning_rate": 0.01,
+        "weight_decay": 0.00004,
+
+        "num_units": 100,
+        "input_dropout": 0.0,
+        "hidden_dropout": 0.0,
+
+        "encoder_nonlinearity": "leaky_relu",
+        "decoder_nonlinearity": "leaky_relu",
+        "use_bias": true,
+        "norm_inputs": true
+    },
 
       "classifier": {
         "learning_rate": 0.01,

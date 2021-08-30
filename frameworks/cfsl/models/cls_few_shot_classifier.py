@@ -182,6 +182,7 @@ class CLSFewShotClassifier(nn.Module):
       for _, (x_support_set_sub_task, y_support_set_sub_task) in \
             enumerate(zip(x_support_set_task, y_support_set_task)):
 
+        print('support set start')
         # Optional: Reset STM every support set
         if reset_stm_per_run:
           self.model.reset(['stm'])
@@ -201,10 +202,11 @@ class CLSFewShotClassifier(nn.Module):
 
         self.model.stm.train()
         for step in range(num_study_steps):
-          self.model.stm.set_pc_buffer_mode('none')
+          print('study step', step)
+          self.model.stm.ca3.set_buffer_mode('none')
 
           if step == 0:
-            self.model.stm.set_pc_buffer_mode('append')
+            self.model.stm.ca3.set_buffer_mode('append')
 
           self.model.stm(inputs=stm_support_input, targets=x_support_set_sub_task, labels=y_support_set_sub_task)
           step_idx += 1
