@@ -5,10 +5,14 @@
 ################################################################################
 
 DEST_DIR='~/cfsl'
-HOSTNAME='ubuntu@104.171.200.134'
+
+host=${1:-localhost}
+
+# sync identity key
+scp ~/.ssh/inc-box ubuntu@${host}:~/.ssh
 
 # sync this folder
-cmd="rsync --chmod=ug=rwX,o=rX --perms -av ./ $HOSTNAME:$DEST_DIR --exclude='.git/' --filter=':- .gitignore'"
+cmd="rsync --chmod=ug=rwX,o=rX --perms -av ./ ubuntu@$host:$DEST_DIR --exclude='.git/' --filter=':- .gitignore'"
 echo $cmd
 eval $cmd
 status=$?

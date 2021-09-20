@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo
-echo "##############   run-remote-screen.sh   ###############"
+echo "##############       run-cloud.sh       ###############"
 echo "#                                                     #"
 echo "# NOTE: Will run from the script's containing folder  #"
 echo "#                                                     #"
@@ -12,11 +12,13 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
   exit 0
 fi
 
-script=${1:-omniglot_aha.sh}
-host=${2:-104.171.200.134}
+host=${1:-localhost}
+script=${2:-omniglot_aha.sh}
 
 echo "Run script = " $script
 echo "Using host = " $host
+
+bash sync-cloud.sh $host
 
 ssh -p 22 ubuntu@${host} 'bash --login -s' <<ENDSSH
 
@@ -44,14 +46,11 @@ ssh -p 22 ubuntu@${host} 'bash --login -s' <<ENDSSH
     # Construct the run command
     cmd="sudo bash \$SCRIPT"
     echo \$cmd
+    eval \$cmd
 
-    # On success, end screen session
-    if eval \$cmd; then
-      exit
-    # Otherwise, maintain session to investigate errors
-    else
-      exec bash
-    fi
+    # scp data and terminate instance
+    rsync -Pav -e "ssh -i \$HOME/.ssh/inc-box -p 4913" ./runs incubator@box.x.agi.io:~/lambda_outputs
+    echo "erase data on instance" | sudo shutdown now
   '
 
 ENDSSH
@@ -60,7 +59,7 @@ status=$?
 
 if [ $status -ne 0 ]
 then
-	echo "ERROR: Could not complete execute run-remote-screen.sh on remote machine through ssh." >&2
+	echo "ERROR: Could not complete execute run-cloud.sh on remote machine through ssh." >&2
 	echo "	Error status = $status" >&2
 	echo "	Exiting now." >&2
 	exit $status
