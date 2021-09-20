@@ -1,0 +1,8 @@
+tensorboard
+future
+pillow<7
+tqdm
+matplotlib
+numpy
+scipy
+opencv
