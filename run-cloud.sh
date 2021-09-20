@@ -12,11 +12,13 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
   exit 0
 fi
 
-host=${3:-104.171.200.134}
-user=${5:-ubuntu}
-port=${6:-22}
+script=${1:-omniglot_aha.sh}
+host=${2:-104.171.200.134}
 
-ssh -p $port ${user}@${host} 'bash --login -s' <<ENDSSH
+echo "Run script = " $script
+echo "Using host = " $host
+
+ssh -p 22 ubuntu@${host} 'bash --login -s' <<ENDSSH
 
   cd \$HOME
   sudo rm -rf cerenaut-pt-core
@@ -30,11 +32,27 @@ ssh -p $port ${user}@${host} 'bash --login -s' <<ENDSSH
   cd pt-aha/cls_module
   sudo python setup.py develop
 
-  cd \$HOME/cfsl/frameworks/cfsl
+  export RUN_DIR=\$HOME/cfsl/frameworks/cfsl
 
+  cd \$RUN_DIR
   sudo pip install -r requirements.txt
 
-  
+  export SCRIPT=\$RUN_DIR/experiment_scripts/$script
+
+  # Start experiment in a new screen session, named "experiment"
+  screen -dmS experiment bash -c '
+    # Construct the run command
+    cmd="sudo bash \$SCRIPT"
+    echo \$cmd
+
+    # On success, end screen session
+    if eval \$cmd; then
+      exit
+    # Otherwise, maintain session to investigate errors
+    else
+      exec bash
+    fi
+  '
 
 ENDSSH
 

@@ -5,4 +5,3 @@ tqdm
 matplotlib
 numpy
 scipy
-opencv
