@@ -25,24 +25,24 @@ def unzip_file(filepath_pack, filepath_to_store):
 
 def check_download_dataset(dataset_name):
     datasets = [dataset_name]
-    dataset_paths = [os.path.join(os.path.abspath(os.environ['DATASET_DIR']), dataset_name)]
+    dataset_paths = [os.path.join(os.path.abspath("datasets"), dataset_name)]
 
     done = False
     for dataset_idx, dataset_path in enumerate(dataset_paths):
         if dataset_path.endswith('/'):
             dataset_path = dataset_path[:-1]
 
-        zip_directory = "{}.tar.bz2".format(os.path.join(os.environ['DATASET_DIR'], datasets[dataset_idx]))
+        zip_directory = "{}.tar.bz2".format(os.path.join("datasets", datasets[dataset_idx]))
         if not os.path.exists(zip_directory):
             print("New dataset path: {} not found, resetting".format(zip_directory))
             # shutil.rmtree(dataset_path, ignore_errors=True)
 
-        if not os.path.exists(os.environ['DATASET_DIR']):
-            os.mkdir(os.environ['DATASET_DIR'])
+        if not os.path.exists("datasets"):
+            os.mkdir("datasets")
 
         if not os.path.exists(dataset_path):
             print("Not found dataset folder structure.. searching for .tar.bz2 file")
-            zip_directory = "{}.tar.bz2".format(os.path.join(os.environ['DATASET_DIR'], datasets[dataset_idx]))
+            zip_directory = "{}.tar.bz2".format(os.path.join("datasets", datasets[dataset_idx]))
 
             if not os.path.exists(zip_directory):
                 print("Not found zip file, downloading..", zip_directory)
@@ -57,7 +57,7 @@ def check_download_dataset(dataset_name):
 
             print("Unpacking zip file: ", zip_directory)
             tar_ref = tarfile.open(zip_directory, mode='r')
-            tar_ref.extractall(os.environ['DATASET_DIR'])
+            tar_ref.extractall("datasets")
             tar_ref.close()
 
         total_files = 0

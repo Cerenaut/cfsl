@@ -61,7 +61,7 @@ class FewShotLearningDatasetParallel(Dataset):
         """
         check_download_dataset(dataset_name=dataset_name)
         dataset_name = dataset_name
-        dataset_path = os.path.join(os.path.abspath(os.environ['DATASET_DIR']), dataset_name)
+        dataset_path = os.path.join(os.path.abspath("datasets"), dataset_name)
         self.indexes_of_folders_indicating_class = indexes_of_folders_indicating_class
 
         self.labels_as_int = labels_as_int

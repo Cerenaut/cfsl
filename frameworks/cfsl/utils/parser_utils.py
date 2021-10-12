@@ -54,8 +54,8 @@ def get_args():
         elif str(args_dict[key]).lower() == "false":
             args_dict[key] = False
         if key == "dataset_path":
-            args_dict[key] = os.path.join(os.environ['DATASET_DIR'], args_dict[key])
-            # print(key, os.path.join(os.environ['DATASET_DIR'], args_dict[key]))
+            args_dict[key] = os.path.join("datasets", args_dict[key])
+            # print(key, os.path.join("datasets", args_dict[key]))
 
         # print(key, args_dict[key], type(args_dict[key]))
 
@@ -170,8 +170,8 @@ def extract_args_from_json(json_file_path, args_dict):
 #         elif str(args_dict[key]).lower() == "false":
 #             args_dict[key] = False
 #         if key == "dataset_path":
-#             args_dict[key] = os.path.join(os.environ['DATASET_DIR'], args_dict[key])
-#             print(key, os.path.join(os.environ['DATASET_DIR'], args_dict[key]))
+#             args_dict[key] = os.path.join("datasets", args_dict[key])
+#             print(key, os.path.join("datasets", args_dict[key]))
 #
 #         print(key, args_dict[key], type(args_dict[key]))
 #
