@@ -13,7 +13,7 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
 fi
 
 host=${1:-localhost}
-script=${2:-omniglot_aha.sh}
+json=${2:-omniglot_aha_vgg.json}
 
 echo "Run script = " $script
 echo "Using host = " $host
@@ -39,18 +39,19 @@ ssh -p 22 ubuntu@${host} 'bash --login -s' <<ENDSSH
   cd \$RUN_DIR
   sudo pip install -r requirements.txt
 
-  export SCRIPT=\$RUN_DIR/experiment_scripts/$script
-
   # Start experiment in a new screen session, named "experiment"
   screen -dmS experiment bash -c '
     # Construct the run command
-    cmd="sudo bash \$SCRIPT"
+    cmd="sudo python train_continual_learning_few_shot_system.py --name_of_args_json_file experiment_config/$json --gpu_to_use 0 "
     echo \$cmd
-    eval \$cmd
 
-    # scp data and terminate instance
-    rsync -Pav -e "ssh -i \$HOME/.ssh/inc-box -p 4913" ./runs incubator@box.x.agi.io:~/lambda_outputs
-    echo "erase data on instance" | sudo shutdown now
+    # On success, end screen session
+    if eval \$cmd; then
+      exit
+    # Otherwise, maintain session to investigate errors
+    else
+      exec bash
+    fi
   '
 
 ENDSSH
