@@ -20,7 +20,7 @@
   "dropout_rate": 0.0,
   "output_spatial_dimensionality": 5,
 
-  "total_epochs": 250,
+  "total_epochs": 100,
   "total_iter_per_epoch":500, "continue_from_epoch": -2,
   "evaluate_on_test_set_only": false,
   "exclude_param_string": ["none"],
@@ -31,6 +31,8 @@
   "learnable_betas": false,
   "num_support_set_steps": 5,
   "num_target_set_steps": 0,
+  "validate": true,
+  "top_n_models": 5,
 
 
   "max_pooling": true,
