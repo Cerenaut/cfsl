@@ -7,7 +7,7 @@
 DEST_DIR='~/agief-remote-run/cfsl'
 
 # sync this folder
-cmd="rsync --chmod=ug=rwX,o=rX --perms -av ./ incubator@box.x.agi.io:$DEST_DIR --port=4913 --exclude='.git/' --filter=':- .gitignore'"
+cmd="rsync --chmod=ug=rwX,o=rX --perms -av -e 'ssh -p 4913' ./ incubator@box.x.agi.io:$DEST_DIR --exclude='.git/' --filter=':- .gitignore'"
 echo $cmd
 eval $cmd
 status=$?
