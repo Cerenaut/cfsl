@@ -1154,7 +1154,7 @@ class VGGEmbeddingNetwork(nn.Module):
 
     def forward(self, x):
         out = x
-        for i in range(4):
+        for i in range(self.num_stages):
             out = self.layer_dict['conv_relu_bn_{}'.format(i)](out)
             out = F.max_pool2d(input=out, kernel_size=(2, 2), stride=2, padding=0)
 

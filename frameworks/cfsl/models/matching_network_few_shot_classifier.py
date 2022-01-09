@@ -35,7 +35,7 @@ class MatchingNetworkFewShotClassifier(nn.Module):
         self.current_epoch = -1
         self.rng = set_torch_seed(seed=self.seed)
 
-        self.classifier = VGGEmbeddingNetwork(im_shape=self.input_shape, self.num_stages,self.num_filters)  
+        self.classifier = VGGEmbeddingNetwork(im_shape=self.input_shape, num_stages=self.num_stages,num_filters=self.num_filters)  
 
         self.device = torch.device('cpu')
 
