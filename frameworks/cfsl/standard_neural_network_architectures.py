@@ -1144,7 +1144,7 @@ class VGGEmbeddingNetwork(nn.Module):
         x = torch.ones(self.input_shape)
         out = x
         for i in range(self.num_stages): 
-            self.layer_dict['conv_relu_bn_{}'.format(i)] = ConvReLUBatchNorm(input_shape=out.shape, num_filters=self.num_filters,
+            self.layer_dict['conv_relu_bn_{}'.format(i)] = ConvReLUBatchNorm(input_shape=out.shape, num_filters=self.num_filters * (i+1),
                                                                              stride=1, padding=1, bias=False,
                                                                              batch_norm=True, kernel_size=3)
             out = self.layer_dict['conv_relu_bn_{}'.format(i)](out)
