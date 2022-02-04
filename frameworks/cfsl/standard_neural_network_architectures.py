@@ -1129,9 +1129,11 @@ class ConvReLUBatchNorm(nn.Module):
 
 
 class VGGEmbeddingNetwork(nn.Module):
-    def __init__(self, im_shape):
+    def __init__(self, im_shape,num_stages,num_filters):
         super(VGGEmbeddingNetwork, self).__init__()
         b, c, self.h, self.w = im_shape
+        self.num_stages = num_stages
+        self.num_filters = num_filters
         self.total_layers = 0
         self.layers = OrderedDict()
         self.input_shape = list(im_shape)
@@ -1141,8 +1143,8 @@ class VGGEmbeddingNetwork(nn.Module):
     def build_block(self):
         x = torch.ones(self.input_shape)
         out = x
-        for i in range(4):
-            self.layer_dict['conv_relu_bn_{}'.format(i)] = ConvReLUBatchNorm(input_shape=out.shape, num_filters=64,
+        for i in range(self.num_stages): 
+            self.layer_dict['conv_relu_bn_{}'.format(i)] = ConvReLUBatchNorm(input_shape=out.shape, num_filters=self.num_filters * (i+1),  # Note: num_filters increase linearily instead of exponentially i.e. (32->64->96) rather than (32->64->128)
                                                                              stride=1, padding=1, bias=False,
                                                                              batch_norm=True, kernel_size=3)
             out = self.layer_dict['conv_relu_bn_{}'.format(i)](out)
@@ -1152,7 +1154,7 @@ class VGGEmbeddingNetwork(nn.Module):
 
     def forward(self, x):
         out = x
-        for i in range(4):
+        for i in range(self.num_stages):
             out = self.layer_dict['conv_relu_bn_{}'.format(i)](out)
             out = F.max_pool2d(input=out, kernel_size=(2, 2), stride=2, padding=0)
 

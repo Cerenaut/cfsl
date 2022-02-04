@@ -122,8 +122,8 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
 
         self.classifier = VGGActivationNormNetwork(input_shape=torch.cat([x_support_set, x_target_set], dim=0).shape,
                                                    num_output_classes=[output_units, 2000],
-                                                   num_stages=4, use_channel_wise_attention=True,
-                                                   num_filters=48,
+                                                   num_stages=self.num_stages, use_channel_wise_attention=True,
+                                                   num_filters=self.num_filters,
                                                    num_support_set_steps=2 * self.num_support_sets * self.num_support_set_steps,
                                                    num_target_set_steps=self.num_target_set_steps + 1,
                                                    )

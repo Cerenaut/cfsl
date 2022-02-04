@@ -466,7 +466,7 @@ class VGGActivationNormNetwork(nn.Module):
 
         for i in range(self.num_stages):
             self.layer_dict['conv_{}'.format(i)] = MetaConvNormLayerLeakyReLU(input_shape=out.shape,
-                                                                              num_filters=self.num_filters,
+                                                                              num_filters=self.num_filters * (i+1), # Note: num_filters increase linearily instead of exponentially i.e. (32->64->96) rather than (32->64->128)
                                                                               kernel_size=3, stride=1,
                                                                               padding=1,
                                                                               use_bias=True,
