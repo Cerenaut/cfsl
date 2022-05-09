@@ -53,8 +53,9 @@ def main():
                           num_tasks_per_epoch=args.total_epochs * args.total_iter_per_epoch,
                           num_channels=args.image_channels,
                           num_support_sets=args.num_support_sets,
-                          overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
-                          class_change_interval=args.class_change_interval)
+                          overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                          
+                          class_change_interval=args.class_change_interval,
+                          instance_test=args.instance_test)
 
   val_setup_dict = dict(dataset_name=args.dataset_name,
                         indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
@@ -69,8 +70,9 @@ def main():
                         num_tasks_per_epoch=args.num_evaluation_tasks,
                         num_channels=args.image_channels,
                         num_support_sets=args.num_support_sets,
-                        overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
-                        class_change_interval=args.class_change_interval)
+                        overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                    
+                        class_change_interval=args.class_change_interval,
+                        instance_test=args.instance_test)
 
   test_setup_dict = dict(dataset_name=args.dataset_name,
                         indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
@@ -85,8 +87,9 @@ def main():
                         num_tasks_per_epoch=args.num_evaluation_tasks,
                         num_channels=args.image_channels,
                         num_support_sets=args.num_support_sets,
-                        overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,
-                        class_change_interval=args.class_change_interval)
+                        overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                        
+                        class_change_interval=args.class_change_interval,
+                        instance_test=args.instance_test)
 
   train_data = FewShotLearningDatasetParallel(**train_setup_dict)
 

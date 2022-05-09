@@ -51,7 +51,7 @@ class FewShotLearningDatasetParallel(Dataset):
                  num_samples_per_support_class, num_channels,
                  num_samples_per_target_class, seed, sets_are_pre_split,
                  load_into_memory, set_name, num_tasks_per_epoch, overwrite_classes_in_each_task,
-                 class_change_interval):
+                 class_change_interval,instance_test):
         """
         A data provider class inheriting from Pytorch's Dataset class. It takes care of creating task sets for
         our few-shot learning model training and evaluation
@@ -73,6 +73,9 @@ class FewShotLearningDatasetParallel(Dataset):
         self.num_support_sets = num_support_sets
         self.overwrite_classes_in_each_task = overwrite_classes_in_each_task
         self.class_change_interval = class_change_interval
+
+        self.instance_test = instance_test
+        self.writer = None
 
         self.dataset = load_dataset(dataset_path, dataset_name, labels_as_int, seed, sets_are_pre_split,
                                     load_into_memory,
@@ -147,18 +150,35 @@ class FewShotLearningDatasetParallel(Dataset):
             episode_label_to_orig_class = {episode_label: selected_class for (selected_class, episode_label) in
                                            zip(selected_classes, episode_labels)}
 
-            for support_set_idx in range(self.class_change_interval):
+            # if instance test:
+            #set_paths=...  //select observations here rather than the inner loop. 
 
+            if self.instance_test:
                 set_paths = [self.dataset[class_idx][sample_idx] for
                          class_idx in selected_classes for sample_idx in
                          rng.choice(len(self.dataset[class_idx]),
-                                    size=self.num_samples_per_support_class + self.num_samples_per_target_class,
-                                    replace=False)]
+                                    size=self.num_samples_per_support_class * self.num_support_sets,
+                                    replace=False)]                
+
+            for support_set_idx in range(self.class_change_interval):
+
+                # if not instance_test
+                if not self.instance_test:
+                    current_set_paths = [self.dataset[class_idx][sample_idx] for
+                            class_idx in selected_classes for sample_idx in
+                            rng.choice(len(self.dataset[class_idx]),
+                                        size=self.num_samples_per_support_class + self.num_samples_per_target_class,
+                                        replace=False)]
+
+                
+                if self.instance_test:
+                    current_set_paths = set_paths[(support_set_idx * self.num_samples_per_support_class): ((support_set_idx + 1) * self.num_samples_per_support_class)] + set_paths[(support_set_idx * self.num_samples_per_support_class): ((support_set_idx + 1) * self.num_samples_per_support_class)]
+                                                       
 
                 if not self.load_into_memory:
-                    x = [augment_image(load_image(image_path), transforms=self.transforms) for image_path in set_paths]
+                    x = [augment_image(load_image(image_path), transforms=self.transforms) for image_path in current_set_paths]
                 else:
-                    x = [torch.tensor(image_path.copy()) for image_path in set_paths]
+                    x = [torch.tensor(image_path.copy()) for image_path in current_set_paths]
 
                 y = np.array([(self.num_samples_per_support_class + self.num_samples_per_target_class) * [
                     class_to_episode_label[class_idx]]
@@ -182,11 +202,11 @@ class FewShotLearningDatasetParallel(Dataset):
                            self.num_samples_per_support_class + self.num_samples_per_target_class, x.shape[1],
                            x.shape[2],
                            x.shape[3])
-
+                
                 x_support_set = x[:, :, :self.num_samples_per_support_class]
                 y_support_set = y[:, :, :self.num_samples_per_support_class]
-
-                x_target_set = x[:, :, self.num_samples_per_support_class:]
+                
+                x_target_set = x[:, :, self.num_samples_per_support_class:]                
                 y_target_set = y[:, :, self.num_samples_per_support_class:]
 
                 x = x.view(-1, x.shape[-3], x.shape[-2],
@@ -213,11 +233,18 @@ class FewShotLearningDatasetParallel(Dataset):
         if not self.overwrite_classes_in_each_task:
             num_support_sets = y_support_set_task.size(0)
             class_change_factors = np.repeat(np.arange(num_support_sets), self.class_change_interval)
-
+            
             for i in range(num_support_sets):
               y_support_set_task[i] += class_change_factors[i] * self.num_classes_per_set
               y_target_set_task[i] += class_change_factors[i] * self.num_classes_per_set
+        
+        if self.instance_test:   # Turn each instance into a class by manually changing the labels, and make the target set identical to the support set.
+            num_support_sets = y_support_set_task.size(0)
 
+            for i in range(num_support_sets):
+                y_support_set_task[i] =  torch.from_numpy(np.arange(i*self.num_samples_per_support_class,(i+1)*self.num_samples_per_support_class))
+                y_target_set_task[i] = torch.from_numpy(np.arange(i*self.num_samples_per_support_class,(i+1)*self.num_samples_per_support_class))
+                x_target_set_task = x_support_set_task
         return x_support_set_task, x_target_set_task, y_support_set_task, y_target_set_task, x_task, y_task
 
     def set_current_iter_idx(self, idx):

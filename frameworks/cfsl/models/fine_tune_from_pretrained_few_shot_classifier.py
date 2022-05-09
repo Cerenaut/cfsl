@@ -113,8 +113,13 @@ class FineTuneFromPretrainedFewShotClassifier(MAMLFewShotClassifier):
         num_target_samples = x_target_set.shape[0]
         num_support_samples = x_support_set.shape[0]
 
-        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+
+        if not self.instance_test:
+            output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+                (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+        else:
+            output_units = self.num_support_sets * self.num_samples_per_support_class
+
 
         print('output units =', output_units)
 
