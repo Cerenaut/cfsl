@@ -1,4 +1,4 @@
-# Continual Few Shot Learning
+# Continual few-shot learning
 
 ## Requirements
 - PyTorch 1.5.1+
