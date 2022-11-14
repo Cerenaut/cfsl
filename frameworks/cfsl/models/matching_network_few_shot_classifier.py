@@ -104,9 +104,11 @@ class MatchingNetworkFewShotClassifier(nn.Module):
         y_support_set = y_support_set.view(-1)
         y_target_set = y_target_set.view(-1)
 
-        output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            self.num_classes_per_set * self.num_support_sets
-
+        if not self.instance_test:
+            output_units = self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+                self.num_classes_per_set * self.num_support_sets
+        else:
+            output_units = self.num_support_sets * self.num_samples_per_support_class
         # print('output units =', output_units)
 
         y_support_set_one_hot = int_to_one_hot(y_support_set)
