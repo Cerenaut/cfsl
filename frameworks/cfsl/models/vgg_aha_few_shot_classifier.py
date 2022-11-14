@@ -1,7 +1,9 @@
+from operator import sub
 import os
 import random
 
 from collections import OrderedDict, defaultdict, deque
+import re
 
 import numpy as np
 import torch
@@ -117,8 +119,11 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         num_target_samples = x_target_set.shape[0]
         num_support_samples = x_support_set.shape[0]
 
-        output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
-            (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+        if not self.instance_test:
+            output_units = int(self.num_classes_per_set if self.overwrite_classes_in_each_task else \
+                (self.num_classes_per_set * self.num_support_sets) / self.class_change_interval)
+        else:
+            output_units = self.num_support_sets * self.num_samples_per_support_class
 
         self.cls_config['stm']['classifier']['output_units'] = output_units
 
@@ -128,8 +133,8 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
 
         self.classifier = VGGActivationNormNetwork(input_shape=torch.cat([x_support_set, x_target_set], dim=0).shape,
                                                    num_output_classes=[output_units, 2000],
-                                                   num_stages=4, use_channel_wise_attention=True,
-                                                   num_filters=48,
+                                                   num_stages=self.num_stages, use_channel_wise_attention=True,
+                                                   num_filters=self.num_filters,
                                                    num_support_set_steps=2 * self.num_support_sets * self.num_support_set_steps,
                                                    num_target_set_steps=self.num_target_set_steps + 1,
                                                    )
@@ -272,6 +277,7 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
             if type(outputs['preds']) == list:
                 outputs['preds'] = outputs['preds'][0]
 
+        
             outputs['loss'] = F.cross_entropy(outputs['preds'], y)
 
         else:
@@ -282,7 +288,7 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
 
             if type(outputs['preds']) == list:
                 outputs['preds'] = outputs['preds'][0]
-
+            
             outputs['loss'] = F.cross_entropy(outputs['preds'], y)
 
         return outputs
@@ -381,14 +387,14 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         pre_target_loss_update_acc = []
         post_target_loss_update_loss = []
         post_target_loss_update_acc = []
-
+    
         for task_id, (x_support_set_task, y_support_set_task, x_target_set_task, y_target_set_task) in \
                 enumerate(zip(x_support_set,
                               y_support_set,
                               x_target_set,
-                              y_target_set)):
-
+                              y_target_set)):            
             # Reset STM at the start of the task
+           
             self.memory.reset()
 
             replay_buffer = {
@@ -414,8 +420,8 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
 
             for sub_task_id, (x_support_set_sub_task, y_support_set_sub_task) in \
                     enumerate(zip(x_support_set_task,
-                                  y_support_set_task)):
-
+                                  y_support_set_task)):                
+                
                 # Optional: Reset STM every support set
                 if reset_stm_per_run:
                     self.memory.reset()
@@ -423,6 +429,8 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
                 # in the future try to adapt the features using a relational component
                 x_support_set_sub_task = x_support_set_sub_task.view(-1, c, h, w).to(self.device)
                 y_support_set_sub_task = y_support_set_sub_task.view(-1).to(self.device)
+
+               
 
                 if self.num_target_set_steps > 0 and 'task_embedding' in self.conditional_information:
                     image_embedding = self.dense_net_embedding.forward(
@@ -441,6 +449,7 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
                     task_embedding = None
 
                 with torch.no_grad():
+                  #print(y_support_set_sub_task)
                   pre_support_outputs = self.net_forward(x=x_support_set_sub_task,
                                                         y=y_support_set_sub_task,
                                                         weights=names_weights_copy,
@@ -461,7 +470,8 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
                                 targets=x_support_set_sub_task,
                                 labels=y_support_set_sub_task)
 
-                for num_step in range(self.num_support_set_steps):
+                for num_step in range(self.num_support_set_steps):                    
+                    
                     x_replay_set, y_replay_set = self.get_replay_batch(
                         replay_buffer, x_support_set_sub_task, y_support_set_sub_task,
                         k=replay_num_samples, interleave=replay_interleave)
@@ -501,14 +511,16 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
                 support_stm_images = stm_support_outputs['memory']['decoding']
                 support_stm_preds = stm_support_outputs['classifier']['predictions']
                 support_stm_softmax_preds = F.softmax(support_stm_preds, dim=0).argmax(dim=1)
+                
 
+                #print(replay_buffer['labels'])
+                
                 if replay_method == 'recall':
                   replay_buffer['inputs'].append(support_stm_images)
                   replay_buffer['labels'].append(support_stm_softmax_preds)
                 else:
                   replay_buffer['inputs'].append(x_support_set_sub_task)
-                  replay_buffer['labels'].append(y_support_set_sub_task)
-
+                  replay_buffer['labels'].append(y_support_set_sub_task)                                
             if not self.use_multi_step_loss_optimization:
                 target_outputs = self.net_forward(x=x_target_set_task,
                                                   y=y_target_set_task, weights=names_weights_copy,
@@ -632,8 +644,9 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         x = x.view(-1, x.shape[-3], x.shape[-2], x.shape[-1]).to(self.device)
 
         y = y.view(-1).to(self.device).long()
-
+        
         preds = self.classifier.forward(x=x, num_step=0)
+
 
         loss = F.cross_entropy(input=preds[1], target=y)
         preds = preds[1].argmax(dim=1)
@@ -662,8 +675,7 @@ class VGGAHAFewShotClassifier(MAMLFewShotClassifier):
         """
 
         if self.training:
-            self.eval()
-
+            self.eval()        
         losses, per_task_preds = self.evaluation_forward_prop(data_batch=data_batch, epoch=self.current_epoch)
 
         return losses, per_task_preds
