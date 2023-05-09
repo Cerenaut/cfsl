@@ -68,7 +68,6 @@
   "class_change_interval": 2,
   "overwrite_classes_in_each_task": false,
 
-
   "second_order": true,
   "use_multi_step_loss_optimization":false
 }

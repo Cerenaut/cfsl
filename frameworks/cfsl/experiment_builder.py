@@ -394,6 +394,7 @@ class ExperimentBuilder(object):
                                                       create=False, filename="test_summary.csv")        
         print(test_losses)
         print("saved test performance at", summary_statistics_filepath)
+        return summary_statistics_filepath
 
     def run_experiment(self):
         """
@@ -411,13 +412,14 @@ class ExperimentBuilder(object):
 
                 save_metrics_summary_iter = 0
                 val_summary_iter = 0
+               
 
                 for idx, train_sample in enumerate(self.data['train']):
                     train_sample = self.convert_into_continual_tasks(train_sample)
 
-                  #  for idx2, supset in enumerate(train_sample[0][0]):
-                   #      for idx3, onesample in enumerate(supset[0][0]):                   
-                    #        plt.imsave('train_images/task'+str(idx)+'_supset'+str(idx2)+'_'+str(idx3)+'.png', np.array(onesample[0]), cmap=cm.gray)                                        
+                   # for idx2, supset in enumerate(train_sample[0][0]):
+                    #     for idx3, onesample in enumerate(supset[0][0]):                   
+                     #       plt.imsave('train_images/task'+str(idx)+'_supset'+str(idx2)+'_'+str(idx3)+'.png', np.array(onesample[0]), cmap=cm.gray)                                        
                    
                     train_losses, total_losses, self.state['current_iter'] = self.train_iteration(
                         train_sample=train_sample,

@@ -1,0 +1,107 @@
+use GPU 0
+GPU ID 0
+{'batch_size': 1, 'image_height': 64, 'image_width': 64, 'image_channels': 3, 'reset_stored_filepaths': False, 'indexes_of_folders_indicating_class': [-3, -2], 'train_val_test_split': [0.73982737361, 0.13008631319, 0.13008631319], 'labels_as_int': False, 'seed': 500, 'gpu_to_use': None, 'num_dataprovider_workers': 8, 'dataset_name': 'SlimageNet64', 'dataset_path': 'datasets/datasets/omniglot_dataset', 'reset_stored_paths': False, 'experiment_name': 'vgg_instance_slimagenet_filt64_stg4_lr0.01_NSS20_samples1', 'continue_from_epoch': 'latest', 'dropout_rate_value': 0.0, 'num_target_samples': 15, 'second_order': True, 'total_epochs': 40, 'total_iter_per_epoch': 500, 'min_meta_learning_rate': 1e-05, 'meta_learning_rate': 0.001, 'norm_layer': 'batch_norm', 'max_pooling': True, 'per_step_bn_statistics': True, 'num_classes_per_set': 1, 'num_samples_per_support_class': 1, 'num_samples_per_target_class': 1, 'name_of_args_json_file': 'slimagenet_runs/noise_occlusion_tests/vgg/NSS20_samples1/occlusion0.9//vgg_instance_slimagenet_filt64_stg4_lr0.01_NSS20_samples1_occlusion0.9_seed500.json', 'max_models_to_save': 5, 'train_seed': 0, 'val_seed': 0, 'sets_are_pre_split': True, 'num_filters': 64, 'num_blocks_per_stage': 2, 'num_stages': 4, 'dropout_rate': 0.0, 'output_spatial_dimensionality': 5, 'evaluate_on_test_set_only': False, 'exclude_param_string': ['none'], 'num_evaluation_tasks': 200, 'multi_step_loss_num_epochs': -1, 'minimum_per_task_contribution': 0.01, 'learnable_learning_rates': True, 'learnable_betas': False, 'num_support_set_steps': 5, 'num_target_set_steps': 0, 'validate': True, 'top_n_models': 5, 'learnable_batch_norm_momentum': False, 'load_into_memory': True, 'inner_loop_optimizer_type': 'lslr', 'init_learning_rate': 0.01, 'learnable_bn_gamma': True, 'learnable_bn_beta': True, 'classifier_type': 'vgg-fine-tune-pretrained', 'min_learning_rate': 0.001, 'total_epochs_before_pause': 300, 'task_learning_rate': -1, 'first_order_to_second_order_epoch': -1, 'weight_decay': 0.0001, 'use_channel_wise_attention': False, 'cnn_num_filters': 48, 'conditional_information': [], 'conv_padding': 1, 'num_output_filters': 64, 'number_of_training_steps_per_iter': 5, 'number_of_evaluation_steps_per_iter': 0, 'num_support_sets': 20, 'class_change_interval': 20, 'overwrite_classes_in_each_task': False, 'instance_test': True, 'occlusion': True, 'degrade_type': 'circle', 'degrade_factor': 0.9, 'noise': False, 'noise_factor': 0, 'use_multi_step_loss_optimization': False, 'use_cuda': True}
+output units = 20
+torch.Size([2, 64, 64, 64])
+torch.Size([2, 128, 32, 32])
+torch.Size([2, 192, 16, 16])
+torch.Size([2, 256, 8, 8])
+VGGNetwork build torch.Size([2, 4096])
+init learning rate 0.01
+Inner Loop parameters
+names_learning_rates_dict.layer_dict-conv_0-conv-weight torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_0-conv-bias torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_1-conv-weight torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_1-conv-bias torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_2-conv-weight torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_2-conv-bias torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_3-conv-weight torch.Size([202])
+names_learning_rates_dict.layer_dict-conv_3-conv-bias torch.Size([202])
+names_learning_rates_dict.layer_dict-linear_0-weights torch.Size([202])
+names_learning_rates_dict.layer_dict-linear_0-bias torch.Size([202])
+Outer Loop parameters
+classifier.layer_dict.conv_0.conv.weight torch.Size([64, 3, 3, 3])
+classifier.layer_dict.conv_0.conv.bias torch.Size([64])
+classifier.layer_dict.conv_0.norm_layer.bias torch.Size([202, 64])
+classifier.layer_dict.conv_0.norm_layer.weight torch.Size([202, 64])
+classifier.layer_dict.conv_1.conv.weight torch.Size([128, 64, 3, 3])
+classifier.layer_dict.conv_1.conv.bias torch.Size([128])
+classifier.layer_dict.conv_1.norm_layer.bias torch.Size([202, 128])
+classifier.layer_dict.conv_1.norm_layer.weight torch.Size([202, 128])
+classifier.layer_dict.conv_2.conv.weight torch.Size([192, 128, 3, 3])
+classifier.layer_dict.conv_2.conv.bias torch.Size([192])
+classifier.layer_dict.conv_2.norm_layer.bias torch.Size([202, 192])
+classifier.layer_dict.conv_2.norm_layer.weight torch.Size([202, 192])
+classifier.layer_dict.conv_3.conv.weight torch.Size([256, 192, 3, 3])
+classifier.layer_dict.conv_3.conv.bias torch.Size([256])
+classifier.layer_dict.conv_3.norm_layer.bias torch.Size([202, 256])
+classifier.layer_dict.conv_3.norm_layer.weight torch.Size([202, 256])
+classifier.layer_dict.linear_0.weights torch.Size([20, 4096])
+classifier.layer_dict.linear_0.bias torch.Size([20])
+classifier.layer_dict.linear_1.weights torch.Size([2000, 4096])
+classifier.layer_dict.linear_1.bias torch.Size([2000])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_0-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_0-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_1-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_1-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_2-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_2-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_3-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_3-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-linear_0-weights torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-linear_0-bias torch.Size([202])
+current trainable params
+classifier.layer_dict.conv_0.conv.weight torch.Size([64, 3, 3, 3])
+classifier.layer_dict.conv_0.conv.bias torch.Size([64])
+classifier.layer_dict.conv_0.norm_layer.bias torch.Size([202, 64])
+classifier.layer_dict.conv_0.norm_layer.weight torch.Size([202, 64])
+classifier.layer_dict.conv_1.conv.weight torch.Size([128, 64, 3, 3])
+classifier.layer_dict.conv_1.conv.bias torch.Size([128])
+classifier.layer_dict.conv_1.norm_layer.bias torch.Size([202, 128])
+classifier.layer_dict.conv_1.norm_layer.weight torch.Size([202, 128])
+classifier.layer_dict.conv_2.conv.weight torch.Size([192, 128, 3, 3])
+classifier.layer_dict.conv_2.conv.bias torch.Size([192])
+classifier.layer_dict.conv_2.norm_layer.bias torch.Size([202, 192])
+classifier.layer_dict.conv_2.norm_layer.weight torch.Size([202, 192])
+classifier.layer_dict.conv_3.conv.weight torch.Size([256, 192, 3, 3])
+classifier.layer_dict.conv_3.conv.bias torch.Size([256])
+classifier.layer_dict.conv_3.norm_layer.bias torch.Size([202, 256])
+classifier.layer_dict.conv_3.norm_layer.weight torch.Size([202, 256])
+classifier.layer_dict.linear_0.weights torch.Size([20, 4096])
+classifier.layer_dict.linear_0.bias torch.Size([20])
+classifier.layer_dict.linear_1.weights torch.Size([2000, 4096])
+classifier.layer_dict.linear_1.bias torch.Size([2000])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_0-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_0-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_1-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_1-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_2-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_2-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_3-conv-weight torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-conv_3-conv-bias torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-linear_0-weights torch.Size([202])
+inner_loop_optimizer.names_learning_rates_dict.layer_dict-linear_0-bias torch.Size([202])
+count stuff________________________________________ /home/amir/Dev/cfsl/frameworks/cfsl/datasets/SlimageNet64 200000
+file count is correct
+count stuff________________________________________ /home/amir/Dev/cfsl/frameworks/cfsl/datasets/SlimageNet64 200000
+file count is correct
+load_into_memory flag is True. Loading the train set into memory
+data 140000
+count stuff________________________________________ /home/amir/Dev/cfsl/frameworks/cfsl/datasets/SlimageNet64 200000
+file count is correct
+load_into_memory flag is True. Loading the val set into memory
+data 20000
+count stuff________________________________________ /home/amir/Dev/cfsl/frameworks/cfsl/datasets/SlimageNet64 200000
+file count is correct
+load_into_memory flag is True. Loading the test set into memory
+data 40000
+attempting to find existing checkpoint
+train_seed 500, val_seed: 500, at start time
+20000 20000
+saved config at /home/amir/Dev/cfsl/frameworks/cfsl/runs/vgg_instance_slimagenet_filt64_stg4_lr0.01_NSS20_samples1/logs_20230506-132222/config.json
+[ 0 12 11  8  5]
+[0.075   0.06875 0.0675  0.0675  0.067  ]
+per_model_accuracy:  (5,)
+saved histograms for tensorboard
+{'test_accuracy_mean_avmodel': 0.05175, 'test_accuracy_std_avmodel': 0.22152186686645634, 'test_accuracy_mean': 0.05645, 'test_accuracy_std': 0.004054010360124896}
+saved test performance at /home/amir/Dev/cfsl/frameworks/cfsl/runs/vgg_instance_slimagenet_filt64_stg4_lr0.01_NSS20_samples1/logs_20230506-132222/test_summary.csv

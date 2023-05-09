@@ -14,7 +14,8 @@ from torchvision import transforms
 
 
 DOWNLOAD_URL = {
-  'omniglot_dataset': 'https://storage.googleapis.com/project-agi/datasets/omniglot/omniglot_dataset.tar.bz2'
+  'omniglot_dataset': 'https://storage.googleapis.com/project-agi/datasets/omniglot/omniglot_dataset.tar.bz2',
+  'SlimageNet64': 'https://storage.googleapis.com/project-agi/datasets/slimagenet/SlimageNet64.tar.bz2'
 }
 
 def unzip_file(filepath_pack, filepath_to_store):

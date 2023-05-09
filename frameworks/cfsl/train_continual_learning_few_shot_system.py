@@ -9,10 +9,35 @@ from torchvision import transforms
 from experiment_builder import ExperimentBuilder
 from models import *
 
+#my flag
 def main():
+    
   # Combines the arguments, model, data and experiment builders to run an experiment
 
   args, device = get_args()
+
+  ## set default values for attributes that don't appear in json files:  ##
+  if (not hasattr(args,"instance_test")):
+      args.instance_test = False 
+  
+  if (not hasattr(args,"occlusion")):
+      args.occlusion = False
+      args.degrade_factor = 0
+      args.degrade_type = ""
+  else:
+      if (not hasattr(args,"degrade_factor")):
+        args.degrade_factor = 0.2 
+      if(not hasattr(args,"degrade_type")):
+        args.degrade_type = "circle"
+  
+  if (not hasattr(args,"noise")):
+      args.noise = False
+      args.noise_factor = 0 
+  elif (not hasattr(args,"noise_factor")):
+      args.noise_factor = 0.2
+   
+  
+  ## default vallue setting end ##
 
   if args.classifier_type == 'maml++_high-end':
       model = EmbeddingMAMLFewShotClassifier(**args.__dict__)
@@ -39,8 +64,8 @@ def main():
                     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))]
   elif args.image_channels == 1:
       tfms = [transforms.Resize(size=(args.image_height, args.image_width)), transforms.ToTensor()]
-
-  train_setup_dict = dict(dataset_name=args.dataset_name,
+  
+  train_setup_dict = dict(dataset_name=args.dataset_name,                          
                           indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
                           train_val_test_split=args.train_val_test_split,
                           labels_as_int=args.labels_as_int, transforms=tfms,
@@ -55,7 +80,12 @@ def main():
                           num_support_sets=args.num_support_sets,
                           overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                          
                           class_change_interval=args.class_change_interval,
-                          instance_test=args.instance_test)
+                          instance_test=args.instance_test,
+                          occlusion=args.occlusion,
+                          degrade_factor=args.degrade_factor,
+                          degrade_type=args.degrade_type,
+                          noise=args.noise,
+                          noise_factor=args.noise_factor)
 
   val_setup_dict = dict(dataset_name=args.dataset_name,
                         indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
@@ -72,7 +102,12 @@ def main():
                         num_support_sets=args.num_support_sets,
                         overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                    
                         class_change_interval=args.class_change_interval,
-                        instance_test=args.instance_test)
+                        instance_test=args.instance_test,
+                        occlusion=args.occlusion,
+                        degrade_factor=args.degrade_factor,
+                        degrade_type=args.degrade_type,
+                        noise=args.noise,
+                        noise_factor=args.noise_factor)
 
   test_setup_dict = dict(dataset_name=args.dataset_name,
                         indexes_of_folders_indicating_class=args.indexes_of_folders_indicating_class,
@@ -89,7 +124,12 @@ def main():
                         num_support_sets=args.num_support_sets,
                         overwrite_classes_in_each_task=args.overwrite_classes_in_each_task,                        
                         class_change_interval=args.class_change_interval,
-                        instance_test=args.instance_test)
+                        instance_test=args.instance_test,
+                        occlusion=args.occlusion,
+                        degrade_factor=args.degrade_factor,
+                        degrade_type=args.degrade_type,
+                        noise=args.noise,
+                        noise_factor=args.noise_factor)
 
   train_data = FewShotLearningDatasetParallel(**train_setup_dict)
 

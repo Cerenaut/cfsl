@@ -1,11 +1,15 @@
 import concurrent.futures
 from collections import defaultdict
 import os
+import copy
 import numpy as np
 import torch
 import tqdm
 from PIL import ImageFile
 from torch.utils.data import Dataset
+from tfms import NoiseTransformation, OcclusionTransformation
+
+import matplotlib.pyplot as plt
 
 from utils.dataset_tools import get_label_set, load_dataset, load_image, check_download_dataset
 import re
@@ -51,7 +55,7 @@ class FewShotLearningDatasetParallel(Dataset):
                  num_samples_per_support_class, num_channels,
                  num_samples_per_target_class, seed, sets_are_pre_split,
                  load_into_memory, set_name, num_tasks_per_epoch, overwrite_classes_in_each_task,
-                 class_change_interval,instance_test):
+                 class_change_interval,instance_test,occlusion,degrade_factor,degrade_type,noise,noise_factor):
         """
         A data provider class inheriting from Pytorch's Dataset class. It takes care of creating task sets for
         our few-shot learning model training and evaluation
@@ -75,7 +79,15 @@ class FewShotLearningDatasetParallel(Dataset):
         self.class_change_interval = class_change_interval
 
         self.instance_test = instance_test
+        self.occlusion = occlusion
+        self.degrade_factor = degrade_factor
+        self.degrade_type = degrade_type
+        self.noise = noise
+        self.noise_factor = noise_factor
+        
         self.writer = None
+
+        self.set_name = set_name
 
         self.dataset = load_dataset(dataset_path, dataset_name, labels_as_int, seed, sets_are_pre_split,
                                     load_into_memory,
@@ -159,7 +171,7 @@ class FewShotLearningDatasetParallel(Dataset):
                          rng.choice(len(self.dataset[class_idx]),
                                     size=self.num_samples_per_support_class * self.num_support_sets,
                                     replace=False)]                
-
+            
             for support_set_idx in range(self.class_change_interval):
 
                 # if not instance_test
@@ -179,6 +191,20 @@ class FewShotLearningDatasetParallel(Dataset):
                     x = [augment_image(load_image(image_path), transforms=self.transforms) for image_path in current_set_paths]
                 else:
                     x = [torch.tensor(image_path.copy()) for image_path in current_set_paths]
+
+             
+               
+                #plt.imsave("./ggg.jpg",x[0][0])
+                
+                
+                ## transform both support and target sets 
+                #if self.occlusion:
+                #    x = [OcclusionTransformation(degrade_factor=self.degrade_factor,degrade_type=self.degrade_type)(img) for img in x]
+                #if self.noise:
+                #    x = [NoiseTransformation(noise_factor = self.noise_factor)(img) for img in x]
+                ##
+                
+                #plt.imsave("./ggg22.jpg",x[0][0])
 
                 y = np.array([(self.num_samples_per_support_class + self.num_samples_per_target_class) * [
                     class_to_episode_label[class_idx]]
@@ -207,7 +233,22 @@ class FewShotLearningDatasetParallel(Dataset):
                 y_support_set = y[:, :, :self.num_samples_per_support_class]
                 
                 x_target_set = x[:, :, self.num_samples_per_support_class:]                
-                y_target_set = y[:, :, self.num_samples_per_support_class:]
+                y_target_set = y[:, :, self.num_samples_per_support_class:]                
+
+                if self.instance_test:
+                    x_target_set = copy.deepcopy(x_support_set)
+
+                
+
+                ## transform only target set 
+                if self.set_name is not 'train':                    
+                    if self.occlusion:
+                        for i in range(self.num_samples_per_target_class):
+                            x_target_set[0][0][i] = OcclusionTransformation(degrade_factor=self.degrade_factor,degrade_type=self.degrade_type)(x_target_set[0][0][i])
+                    if self.noise:
+                        for i in range(self.num_samples_per_target_class):
+                            x_target_set[0][0][i] = NoiseTransformation(noise_factor = self.noise_factor)(x_target_set[0][0][i]) 
+                ##
 
                 x = x.view(-1, x.shape[-3], x.shape[-2],
                            x.shape[-1])
@@ -244,7 +285,41 @@ class FewShotLearningDatasetParallel(Dataset):
             for i in range(num_support_sets):
                 y_support_set_task[i] =  torch.from_numpy(np.arange(i*self.num_samples_per_support_class,(i+1)*self.num_samples_per_support_class))
                 y_target_set_task[i] = torch.from_numpy(np.arange(i*self.num_samples_per_support_class,(i+1)*self.num_samples_per_support_class))
-                x_target_set_task = x_support_set_task
+               # x_target_set_task = x_support_set_task
+        
+        #plt.imsave("./ggg.jpg",x_target_set[0][0])
+        
+        
+
+
+        ## transform target set only
+       # if (not os.path.isdir("./support")):
+        #    os.mkdir("./support")       
+        for i in range(num_support_sets):
+         #   if (not os.path.isdir("./support/sup"+str(i))):
+          #      os.mkdir("./support/sup"+str(i))
+            for j in range(self.num_classes_per_set):                                    
+                for k in range(self.num_samples_per_support_class):                        
+                    plt.imsave("./support/sup"+str(i)+"/class"+str(j)+"_sample"+str(k)+".jpg",x_support_set_task[i][0][j][k][0])
+
+        #if (not os.path.isdir("./target")):
+         #   os.mkdir("./target")       
+        for i in range(num_support_sets):
+          #  if (not os.path.isdir("./target/sup"+str(i))):
+           #     os.mkdir("./target/sup"+str(i))
+            for j in range(self.num_classes_per_set):                                    
+                for k in range(self.num_samples_per_target_class):                        
+                    plt.imsave("./target/sup"+str(i)+"/class"+str(j)+"_sample"+str(k)+".jpg",x_target_set_task[i][0][j][k][0])
+                    #print(x_target_set_task[i][0][j].shape)
+
+            
+        #    x_target_set = [OcclusionTransformation(degrade_factor=self.degrade_factor,degrade_type=self.degrade_type)(img) for img in x_target_set]
+        #if self.noise:
+        #    x_target_set = [NoiseTransformation(noise_factor = self.noise_factor)(img) for img in x_target_set]
+        ##
+        #plt.imsave("./ggg22.jpg",x_target_set[0][0])
+
+
         return x_support_set_task, x_target_set_task, y_support_set_task, y_target_set_task, x_task, y_task
 
     def set_current_iter_idx(self, idx):
